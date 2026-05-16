@@ -217,7 +217,7 @@ export default function FamilyBooking() {
 
   useEffect(() => {
     if (!date) return;
-    fetch(`http://localhost:5000/api/slots/${date}`)
+    fetch(`https://passport-booking-app.onrender.com/api/slots/${date}`)
       .then(r => r.json())
       .then(data => { setBookedSlots(data); });
   }, [date]);
@@ -268,7 +268,7 @@ try{
 const res=
 await fetch(
 
-"http://localhost:5000/api/family-book",
+"https://passport-booking-app.onrender.com/api/family-book",
 
 {
 

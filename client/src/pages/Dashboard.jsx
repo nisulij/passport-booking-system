@@ -188,7 +188,7 @@ export default function Dashboard() {
   const [bookingType, setBookingType] = useState("all");
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/admin/bookings")
+    fetch("https://passport-booking-app.onrender.com/api/admin/bookings")
       .then(r => r.json())
       .then(data => { setBookings(data); setLoading(false); })
       .catch(() => { setBookings(DEMO); setLoading(false); });
@@ -196,7 +196,7 @@ export default function Dashboard() {
 
   const updateStatus = async (id, status) => {
     try {
-      await fetch(`http://localhost:5000/api/admin/status/${id}`, {
+      await fetch(`https://passport-booking-app.onrender.com/api/admin/status/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),

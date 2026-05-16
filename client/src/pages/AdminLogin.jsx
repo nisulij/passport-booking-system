@@ -30,7 +30,7 @@ setLoading
 useEffect(()=>{
 
 fetch(
-"http://localhost:5000/api/admin/exists"
+"https://passport-booking-app.onrender.com/api/admin/exists"
 )
 
 .then(r=>r.json())
@@ -57,7 +57,7 @@ try{
 const res=
 await fetch(
 
-"http://localhost:5000/api/admin/login",
+"https://passport-booking-app.onrender.com/api/admin/login",
 
 {
 
