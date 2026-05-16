@@ -193,7 +193,7 @@ export default function PassportBooking() {
     if (!form.date) return;
     setLoadingSlots(true);
     setSelectedSlot("");
-    fetch(`http://localhost:5000/api/slots/${form.date}`)
+    fetch(`https://passport-booking-app.onrender.com/api/slots/${form.date}`)
       .then(r => r.json())
       .then(data => setBookedSlots(data))
       .catch(() => {

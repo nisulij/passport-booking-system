@@ -22,7 +22,7 @@ try{
 const res=
 await fetch(
 
-"http://localhost:5000/api/admin/signup",
+"https://passport-booking-app.onrender.com/api/admin/signup",
 
 {
 
