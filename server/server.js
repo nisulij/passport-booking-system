@@ -16,14 +16,13 @@ const adminRoutes = require("./routes/admin");
 const app = express();
 
 app.use(
-cors({
-
-origin:
-"https://passport-booking.vercel.app",
-
-credentials:true
-
-})
+  cors({
+    origin: [
+      "https://passport-booking-system.vercel.app",
+      "http://localhost:5173"
+    ],
+    credentials: true
+  })
 );
 
 app.use(express.json());
