@@ -16,8 +16,14 @@ const app = express();
 // CORS
 app.use(
   cors({
-    origin: "*",
+    origin: [
+      "https://passport-booking-system.vercel.app",
+      "https://passport-booking-system-git-main-nisuli-s-projects.vercel.app",
+      "http://localhost:5173"
+    ],
+
     methods: ["GET", "POST", "PUT", "DELETE"],
+
     credentials: true
   })
 );
