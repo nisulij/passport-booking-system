@@ -6,6 +6,7 @@ const Booking = require("../models/Booking");
 
 
 
+
 // GET BOOKED SLOTS
 
 router.get(
@@ -53,7 +54,7 @@ res.status(500)
 
 
 
-// ALL BOOKINGS FOR DASHBOARD
+// ALL BOOKINGS
 
 router.get(
 "/bookings",
@@ -279,6 +280,12 @@ member.id,
 phone:
 member.phone,
 
+address:
+member.address,
+
+purpose:
+member.purpose,
+
 email,
 
 date,
@@ -434,7 +441,32 @@ const booking=
 
 new Booking({
 
-...data,
+title:
+data.title,
+
+name:
+data.name,
+
+idNumber:
+data.idNumber,
+
+email:
+data.email,
+
+phone:
+data.phone,
+
+address:
+data.address,
+
+purpose:
+data.purpose,
+
+date:
+data.date,
+
+slot:
+data.slot,
 
 token,
 

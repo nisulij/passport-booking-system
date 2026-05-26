@@ -10,451 +10,447 @@ const Booking = require("../models/Booking");
 const router = express.Router();
 
 
+// ==============================
+// GMAIL TRANSPORTER
+// ==============================
+
+const transporter = nodemailer.createTransport({
+
+  host: "smtp.gmail.com",
+
+  port: 587,
+
+  secure: false,
+
+  auth: {
+
+    user: process.env.EMAIL,
+
+    pass: process.env.EMAIL_PASSWORD
+
+  }
+
+});
+
+
+// TEST MAIL CONNECTION
+
+transporter.verify((error, success) => {
+
+  if (error) {
+
+    console.log("MAIL ERROR:", error);
+
+  } else {
+
+    console.log("Gmail SMTP Ready");
+
+  }
+
+});
+
+
+
+// ==============================
 // CHECK ADMIN EXISTS
+// ==============================
 
-router.get("/exists", async(req,res)=>{
+router.get("/exists", async (req, res) => {
 
-try{
+  try {
 
-const count=
-await Admin.countDocuments();
+    const count =
+    await Admin.countDocuments();
 
-res.json({
+    res.json({
 
-exists:
-count>0
+      exists: count > 0
 
-});
+    });
 
-}
+  }
 
-catch{
+  catch (err) {
 
-res.status(500)
-.json({
+    console.log(err);
 
-exists:false
+    res.status(500).json({
 
-});
+      exists: false
 
-}
+    });
 
-});
-
-
-
-
-// FIRST ADMIN SIGNUP ONLY
-
-router.post("/signup",async(req,res)=>{
-
-try{
-
-const count=
-await Admin.countDocuments();
-
-if(count>0){
-
-return res
-.status(400)
-.json({
-
-message:
-"Signup disabled"
-
-});
-
-}
-
-
-const{
-email,
-password
-}=req.body;
-
-
-const hash=
-await bcrypt.hash(
-password,
-10
-);
-
-
-await Admin.create({
-
-email,
-
-password:hash
-
-});
-
-
-res.json({
-
-message:
-"Admin account created"
-
-});
-
-}
-
-catch(err){
-
-console.log(err);
-
-res.status(500)
-.json({
-
-message:
-"Server error"
-
-});
-
-}
+  }
 
 });
 
 
 
 
+// ==============================
+// FIRST ADMIN SIGNUP
+// ==============================
+
+router.post("/signup", async (req, res) => {
+
+  try {
+
+    const count =
+    await Admin.countDocuments();
+
+    if (count > 0) {
+
+      return res.status(400).json({
+
+        message: "Signup disabled"
+
+      });
+
+    }
+
+    const {
+
+      email,
+      password
+
+    } = req.body;
+
+
+    const hash =
+    await bcrypt.hash(password, 10);
+
+
+    await Admin.create({
+
+      email,
+      password: hash
+
+    });
+
+    res.json({
+
+      message: "Admin account created"
+
+    });
+
+  }
+
+  catch (err) {
+
+    console.log("SIGNUP ERROR:", err);
+
+    res.status(500).json({
+
+      message: err.message
+
+    });
+
+  }
+
+});
+
+
+
+
+// ==============================
 // LOGIN + SEND OTP
+// ==============================
 
-router.post("/login",async(req,res)=>{
+router.post("/login", async (req, res) => {
 
-try{
+  try {
 
-const{
-email,
-password
-}=req.body;
+    const {
 
+      email,
+      password
 
-const admin=
-await Admin.findOne({
-email
-});
+    } = req.body;
 
 
-if(!admin){
-
-return res
-.status(400)
-.json({
-
-message:
-"Admin not found"
-
-});
-
-}
+    const admin =
+    await Admin.findOne({ email });
 
 
-const valid=
-await bcrypt.compare(
-password,
-admin.password
-);
+    if (!admin) {
+
+      return res.status(400).json({
+
+        message: "Admin not found"
+
+      });
+
+    }
 
 
-if(!valid){
+    const valid =
+    await bcrypt.compare(
+      password,
+      admin.password
+    );
 
-return res
-.status(400)
-.json({
 
-message:
-"Incorrect password"
+    if (!valid) {
 
-});
+      return res.status(400).json({
 
-}
+        message: "Incorrect password"
+
+      });
+
+    }
 
 
 
-const otp=
-otpGenerator.generate(
-6,
-{
-upperCaseAlphabets:false,
-lowerCaseAlphabets:false,
-specialChars:false
-}
-);
+    // OTP
+
+    const otp =
+    otpGenerator.generate(
+      6,
+      {
+        upperCaseAlphabets: false,
+        lowerCaseAlphabets: false,
+        specialChars: false
+      }
+    );
 
 
-admin.otp=otp;
+    admin.otp = otp;
 
-admin.otpExpiry=
-Date.now()+300000;
+    admin.otpExpiry =
+    Date.now() + 300000;
 
-await admin.save();
-
-
-
-const transporter=
-nodemailer.createTransport({
-
-service:"gmail",
-
-auth:{
-
-user:
-process.env.EMAIL,
-
-pass:
-process.env.EMAIL_PASSWORD
-
-}
-
-});
+    await admin.save();
 
 
 
-await transporter.sendMail({
+    // SEND EMAIL
 
-from:
-process.env.EMAIL,
+    await transporter.sendMail({
 
-to:
-email,
+      from: process.env.EMAIL,
 
-subject:
-"Passport Admin OTP",
+      to: email,
 
-text:
-`Your OTP: ${otp}
+      subject: "Passport Admin OTP",
 
-Expires in 5 minutes.`
+      text:
+`Your OTP Code: ${otp}
 
-});
+This OTP expires in 5 minutes.`
+
+    });
 
 
-res.json({
+    console.log("OTP SENT:", otp);
 
-message:
-"OTP sent"
 
-});
+    res.json({
 
-}
+      message: "OTP sent"
 
-catch(err){
+    });
 
-console.log(err);
+  }
 
-res.status(500)
-.json({
+  catch (err) {
 
-message:
-"Login failed"
+    console.log("LOGIN ERROR:", err);
 
-});
+    res.status(500).json({
 
-}
+      message: err.message
+
+    });
+
+  }
 
 });
 
 
 
 
+// ==============================
 // VERIFY OTP
+// ==============================
 
-router.post("/verify-otp",async(req,res)=>{
+router.post("/verify-otp", async (req, res) => {
 
-try{
+  try {
 
-const{
-email,
-otp
-}=req.body;
+    const {
 
+      email,
+      otp
 
-const admin=
-await Admin.findOne({
-email
-});
+    } = req.body;
 
 
-if(!admin){
-
-return res
-.status(400)
-.json({
-
-message:
-"Admin not found"
-
-});
-
-}
+    const admin =
+    await Admin.findOne({ email });
 
 
-if(admin.otp!==otp){
+    if (!admin) {
 
-return res
-.status(400)
-.json({
+      return res.status(400).json({
 
-message:
-"Invalid OTP"
+        message: "Admin not found"
 
-});
+      });
 
-}
+    }
 
 
-if(Date.now()>admin.otpExpiry){
+    if (admin.otp !== otp) {
 
-return res
-.status(400)
-.json({
+      return res.status(400).json({
 
-message:
-"OTP expired"
+        message: "Invalid OTP"
 
-});
+      });
 
-}
+    }
 
 
-const token=
-jwt.sign(
+    if (Date.now() > admin.otpExpiry) {
 
-{
+      return res.status(400).json({
 
-id:admin._id
+        message: "OTP expired"
 
-},
+      });
 
-process.env.JWT_SECRET,
-
-{
-
-expiresIn:"1d"
-
-}
-
-);
+    }
 
 
-admin.otp="";
 
-await admin.save();
+    const token =
+    jwt.sign(
+
+      {
+
+        id: admin._id
+
+      },
+
+      process.env.JWT_SECRET,
+
+      {
+
+        expiresIn: "1d"
+
+      }
+
+    );
 
 
-res.json({
+    admin.otp = "";
 
-message:
-"Success",
+    await admin.save();
 
-token
 
-});
+    res.json({
 
-}
+      message: "Success",
 
-catch(err){
+      token
 
-console.log(err);
+    });
 
-res.status(500)
-.json({
+  }
 
-message:
-"Verification failed"
+  catch (err) {
 
-});
+    console.log("VERIFY OTP ERROR:", err);
 
-}
+    res.status(500).json({
+
+      message: err.message
+
+    });
+
+  }
 
 });
 
 
 
 
-// DASHBOARD GET BOOKINGS
+// ==============================
+// GET BOOKINGS
+// ==============================
 
-router.get(
-"/bookings",
+router.get("/bookings", async (req, res) => {
 
-async(req,res)=>{
+  try {
 
-try{
+    const bookings =
+    await Booking.find()
+    .sort({
 
-const bookings=
+      createdAt: -1
 
-await Booking.find()
-.sort({
+    });
 
-createdAt:-1
+    res.json(bookings);
 
-});
+  }
 
-res.json(
-bookings
-);
+  catch (err) {
 
-}
+    console.log(err);
 
-catch(err){
+    res.status(500).json([]);
 
-console.log(err);
-
-res.status(500)
-.json([]);
-
-}
+  }
 
 });
 
 
 
 
-// UPDATE BOOKING STATUS
+// ==============================
+// UPDATE STATUS
+// ==============================
 
-router.put(
-"/status/:id",
+router.put("/status/:id", async (req, res) => {
 
-async(req,res)=>{
+  try {
 
-try{
+    await Booking.findByIdAndUpdate(
 
-await Booking.findByIdAndUpdate(
+      req.params.id,
 
-req.params.id,
+      {
 
-{
+        status: req.body.status
 
-status:
-req.body.status
+      }
 
-}
+    );
 
-);
+    res.json({
 
-res.json({
+      message: "updated"
 
-message:
-"updated"
+    });
 
-});
+  }
 
-}
+  catch (err) {
 
-catch{
+    console.log(err);
 
-res.status(500)
-.json({
+    res.status(500).json({
 
-message:
-"failed"
+      message: "failed"
 
-});
+    });
 
-}
+  }
 
 });
 
 
 
-module.exports=router;
+module.exports = router;

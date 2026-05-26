@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 // Generate all 5-minute slots from 9am to 5pm
 function generateSlots() {
   const slots = [];
-  for (let h = 9; h < 17; h++) {
+  for (let h = 9; h < 13; h++) {
     for (let m = 0; m < 60; m += 5) {
       const start = `${h}:${String(m).padStart(2, "0")}`;
       let em = m + 5, eh = h;
@@ -35,7 +35,7 @@ function randomToken() {
 // ── Slot Availability Panel ──────────────────────────────────────────────────
 function SlotPanel({ date, bookedSlots, loadingSlots, selectedSlot, onSelectSlot }) {
   const available = ALL_SLOTS.length - bookedSlots.length;
-  const hours = Array.from({ length: 8 }, (_, i) => i + 9);
+  const hours = Array.from({ length: 4 }, (_, i) => i + 9);
 
   return (
     <div style={styles.slotPanel}>
@@ -181,7 +181,14 @@ export default function PassportBooking() {
   const [errors, setErrors] = useState({});
 
   const [form, setForm] = useState({
-    title: "Mr", name: "", id: "", email: "", phone: "", date: "",
+    title: "Mr",
+    name: "",
+    id: "",
+    email: "",
+    phone: "",
+    address: "",
+    purpose: "New Passport",
+    date: "",
   });
 
   const handleChange = (field, value) => {
@@ -256,7 +263,8 @@ const handleSubmit = async () => {
           email: form.email,
 
           phone: form.phone,
-
+          address: form.address,
+          purpose: form.purpose,
           date: form.date,
 
           slot: selectedSlot
@@ -303,7 +311,7 @@ const handleSubmit = async () => {
 };
 
   const handleReset = () => {
-    setForm({ title: "Mr", name: "", id: "", email: "", phone: "", date: "" });
+    setForm({ title: "Mr", name: "", id: "", email: "", phone: "", address: "", purpose: "New Passport", date: "" });
     setErrors({});
     setStep(1);
     setSubmitted(false);
@@ -420,10 +428,10 @@ const handleSubmit = async () => {
                   </div>
 
                   <div style={styles.field}>
-                    <label style={styles.label}>ID / Passport No.</label>
+                    <label style={styles.label}>Resident ID / Passport No.</label>
                     <input
                       style={{ ...styles.input, ...(errors.id ? styles.inputErr : {}) }}
-                      placeholder="National ID or Passport number"
+                      placeholder="National Resident ID or Passport number"
                       value={form.id}
                       onChange={e => handleChange("id", e.target.value)}
                     />
@@ -448,10 +456,35 @@ const handleSubmit = async () => {
                       style={{ ...styles.input, ...(errors.phone ? styles.inputErr : {}) }}
                       placeholder="+1 555 000 0000"
                       value={form.phone}
-                      onChange={e => handleChange("phone", e.target.value)}
+                      onChange={e => handleChange("phone", e.target.value.replace(/\D/g, ""))}
                     />
                     {errors.phone && <span style={styles.errMsg}>{errors.phone}</span>}
                   </div>
+                  <div style={styles.field}>
+                    <label style={styles.label}>Address</label>
+                    <input
+                      style={styles.input}
+                      placeholder="Home Address"
+                      value={form.address}
+                      onChange={e => handleChange("address", e.target.value)}
+                    />
+                  </div>
+
+                  <div style={styles.field}>
+                    <label style={styles.label}>Purpose</label>
+                    <select
+                      style={styles.input}
+                      value={form.purpose}
+                      onChange={e => handleChange("purpose", e.target.value)}
+                    >
+                      <option>New Passport</option>
+                      <option>Renew Passport</option>
+                      <option>Lost Passport</option>
+                      <option>Damaged Passport</option>
+                      <option>Child Passport</option>
+                    </select>
+                  </div>
+
 
                   <div style={styles.divider} />
                   <button className="primary-btn" style={styles.primaryBtn} onClick={handleNext}>
