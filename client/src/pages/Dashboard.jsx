@@ -283,6 +283,31 @@ export default function Dashboard() {
         .filter-btn { transition: background 0.15s, color 0.15s, border-color 0.15s; }
         .filter-btn:hover { border-color: #93C5FD !important; }
         input:focus { outline: none; border-color: #3B82F6 !important; box-shadow: 0 0 0 3px rgba(59,130,246,0.12); }
+
+        .dashboard-table-scroll {
+          scrollbar-width: thin;
+          scrollbar-color: #CBD5E1 transparent;
+        }
+
+        .dashboard-table-scroll::-webkit-scrollbar {
+          height: 8px;
+        }
+
+        .dashboard-table-scroll::-webkit-scrollbar-thumb {
+          background: #CBD5E1;
+          border-radius: 999px;
+        }
+
+        .dashboard-table-scroll::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        @media (max-width: 900px) {
+          .dashboard-page-content {
+            padding-left: 16px !important;
+            padding-right: 16px !important;
+          }
+        }
       `}</style>
 
       {/* Navbar */}
@@ -310,7 +335,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div style={{ padding: "32px 36px", maxWidth: 1440, margin: "0 auto" }}>
+      <div className="dashboard-page-content" style={{ padding: "32px 36px", maxWidth: 1700, margin: "0 auto" }}>
 
         {/* Heading */}
         <div style={{ marginBottom: 28, animation: "fadeUp 0.35s ease" }}>
@@ -430,7 +455,7 @@ export default function Dashboard() {
           </div>
 
           {/* Table */}
-          <div style={{ overflowX: "auto" }}>
+          <div className="dashboard-table-scroll" style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
             {loading ? (
               <div style={{ padding: "60px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
                 <div style={{ width: 30, height: 30, border: "2px solid #E9EBF0", borderTopColor: "#1D4ED8", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
@@ -442,7 +467,7 @@ export default function Dashboard() {
                 <div style={{ fontSize: 14, color: "#6B7280" }}>No bookings match your filters</div>
               </div>
             ) : (
-              <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "auto" }}>
+              <table style={{ width: "100%", minWidth: 1480, borderCollapse: "collapse", tableLayout: "auto" }}>
                 <thead>
                   <tr style={{ background: "#FAFAFA" }}>
                     {COL_HEADERS.map(({ label, field }) => (
@@ -471,14 +496,38 @@ export default function Dashboard() {
                       <tr key={b._id} className="trow" style={{ opacity: 0, animation: `fadeUp 0.28s ease ${i * 35}ms forwards` }}>
 
                         {/* Token */}
-                        <td style={td}>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: "#1D4ED8", background: "#EFF6FF", padding: "3px 9px", borderRadius: 6, border: "1px solid #BFDBFE", letterSpacing: "0.3px", fontFamily: "monospace" }}>
-                            {b.token}
+                        <td
+                          style={{
+                            ...td,
+                            minWidth: 165,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              whiteSpace: "nowrap",
+                              wordBreak: "keep-all",
+                              overflowWrap: "normal",
+                              fontSize: 12,
+                              fontWeight: 700,
+                              color: "#1D4ED8",
+                              background: "#EFF6FF",
+                              padding: "5px 10px",
+                              borderRadius: 7,
+                              border: "1px solid #BFDBFE",
+                              letterSpacing: "0.25px",
+                              fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                              lineHeight: 1,
+                            }}
+                          >
+                            {b.token || "—"}
                           </span>
                         </td>
 
                         {/* Name */}
-                        <td style={td}>
+                        <td style={{ ...td, minWidth: 185 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                             <div style={{ width: 32, height: 32, borderRadius: "50%", background: avatar.bg, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: avatar.text }}>
                               {String(b.name || "A").charAt(0).toUpperCase()}
@@ -488,7 +537,7 @@ export default function Dashboard() {
                         </td>
 
                         {/* Service */}
-                        <td style={td}>
+                        <td style={{ ...td, minWidth: 145, whiteSpace: "nowrap" }}>
                           {(() => {
                             const cfg = SERVICE_CONFIG[getServiceType(b)] || SERVICE_CONFIG.passport;
                             return (
@@ -512,12 +561,12 @@ export default function Dashboard() {
                         </td>
 
                         {/* Purpose */}
-                        <td style={{ ...td, color: "#6B7280", fontSize: 12, whiteSpace: "nowrap" }}>
+                        <td style={{ ...td, minWidth: 170, color: "#6B7280", fontSize: 12, whiteSpace: "nowrap" }}>
                           {b.purpose || "—"}
                         </td>
 
                         {/* Email */}
-                        <td style={{ ...td, color: "#6B7280", fontSize: 13 }}>{b.email}</td>
+                        <td style={{ ...td, minWidth: 210, color: "#6B7280", fontSize: 13, whiteSpace: "nowrap" }}>{b.email}</td>
 
                         {/* Phone */}
                         <td style={{ ...td, color: "#6B7280", fontSize: 13, whiteSpace: "nowrap" }}>{b.phone}</td>
