@@ -2,9 +2,18 @@ const mongoose = require("mongoose");
 
 const bookingSchema = new mongoose.Schema(
   {
+    serviceType: {
+      type: String,
+      enum: ["passport", "birth_certificate", "other"],
+      required: true,
+      default: "passport",
+      index: true,
+    },
+
     title: {
       type: String,
-      required: true,
+      default: "",
+      trim: true,
     },
 
     name: {
@@ -40,7 +49,7 @@ const bookingSchema = new mongoose.Schema(
 
     purpose: {
       type: String,
-      default: "New Passport",
+      default: "",
       trim: true,
     },
 
@@ -57,24 +66,18 @@ const bookingSchema = new mongoose.Schema(
     token: {
       type: String,
       required: true,
+      unique: true,
     },
 
     status: {
       type: String,
-      enum: [
-        "ongoing",
-        "completed",
-        "no participate",
-      ],
+      enum: ["ongoing", "completed", "no participate"],
       default: "ongoing",
     },
 
     bookingType: {
       type: String,
-      enum: [
-        "individual",
-        "family",
-      ],
+      enum: ["individual", "family", "service"],
       default: "individual",
     },
 
@@ -93,37 +96,21 @@ const bookingSchema = new mongoose.Schema(
   }
 );
 
-
-// =============================================
-// IMPORTANT
-// Only ONE booking can own a date + time slot
-// =============================================
-
+// IMPORTANT:
+// A time slot is unique only INSIDE the same service.
+// Example:
+// passport 09:00 can coexist with birth_certificate 09:00
+// and other 09:00 on the same date.
 bookingSchema.index(
   {
+    serviceType: 1,
     date: 1,
     slot: 1,
   },
   {
     unique: true,
+    name: "service_date_slot_unique",
   }
 );
 
-
-// Token should also be unique
-
-bookingSchema.index(
-  {
-    token: 1,
-  },
-  {
-    unique: true,
-  }
-);
-
-
-module.exports =
-  mongoose.model(
-    "Booking",
-    bookingSchema
-  );
+module.exports = mongoose.model("Booking", bookingSchema);

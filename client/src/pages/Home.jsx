@@ -1,309 +1,444 @@
 import { useNavigate } from "react-router-dom";
 
+const EMBLEM_SRC = "/images/sri-lanka-emblem.svg";
+const FLAG_SRC = "/images/flag.png";
+
 export default function Home() {
   const navigate = useNavigate();
 
-  return (
-    <div style={{ minHeight: "100vh", background: "#faf9f7", fontFamily: "'DM Sans', sans-serif" }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500&display=swap');
+  const services = [
+    {
+      key: "passport",
+      icon: "🛂",
+      title: "Passport Services",
+      description: "Individual and family passport appointments.",
+      note: "5-minute slots",
+      path: "/passport",
+    },
+    {
+      key: "birth",
+      icon: "📜",
+      title: "Birth Certificate",
+      description: "Book an appointment for birth certificate related services.",
+      note: "15-minute slots",
+      path: "/birth-certificate",
+    },
+    {
+      key: "other",
+      icon: "🏛",
+      title: "Other Consular Services",
+      description: "Book document, attestation and other consular appointments.",
+      note: "30-minute slots",
+      path: "/other-services",
+    },
+  ];
 
+  return (
+    <div className="home-root">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600;700&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { margin: 0; }
+        button { font: inherit; }
 
         .home-root {
           min-height: 100vh;
-          background: #faf9f7;
-          display: flex;
-          flex-direction: column;
+          background: #f8f6f1;
+          color: #17213a;
+          font-family: 'DM Sans', sans-serif;
         }
 
-        .home-header {
-          background: #1a1a2e;
-          color: #fff;
-          padding: 28px 40px;
+        .gold-line { height: 4px; background: #e7ad18; }
+
+        .official-header {
+          background: #fff;
+          border-bottom: 1px solid #e7e2d8;
         }
 
-        .home-header-inner {
-          max-width: 720px;
+        .official-header-inner {
+          width: min(1500px, calc(100% - 64px));
+          min-height: 138px;
           margin: 0 auto;
           display: flex;
           align-items: center;
-          gap: 14px;
+          justify-content: space-between;
+          gap: 30px;
         }
-.admin-login-btn{
-  margin-left:auto;
-  background:transparent;
-  color:#c8b8ff;
-  border:1px solid rgba(200,184,255,0.25);
-  padding:10px 18px;
-  border-radius:10px;
-  cursor:pointer;
-  font-size:13px;
-  font-weight:500;
-  transition:all .2s ease;
-}
 
-.admin-login-btn:hover{
-  background:rgba(200,184,255,0.12);
-  border-color:#c8b8ff;
-  color:#fff;
-}
-        .home-logo {
-          width: 38px;
-          height: 38px;
-          border-radius: 10px;
-          background: rgba(200,184,255,0.15);
-          border: 1px solid rgba(200,184,255,0.25);
+        .official-brand {
           display: flex;
           align-items: center;
-          justify-content: center;
-          font-size: 18px;
-          flex-shrink: 0;
+          gap: 22px;
         }
 
-        .home-header h1 {
-          font-family: 'DM Serif Display', serif;
-          font-size: 20px;
-          font-weight: 400;
-          letter-spacing: -0.2px;
-          color: #fff;
+        .official-emblem {
+          width: 74px;
+          height: 92px;
+          object-fit: contain;
         }
 
-        .home-header .sub {
+        .official-kicker {
+          color: #7d002f;
+          font-size: 14px;
+          font-weight: 800;
+          letter-spacing: .19em;
+          text-transform: uppercase;
+          margin-bottom: 6px;
+        }
+
+        .official-title {
+          color: #151b31;
+          font-size: 27px;
+          font-weight: 700;
+        }
+
+        .official-subtitle {
+          margin-top: 6px;
+          color: #756b66;
+          font-size: 16px;
+        }
+
+        .official-right {
+          display: flex;
+          align-items: center;
+          gap: 28px;
+          text-align: right;
+        }
+
+        .official-right-label {
+          color: #8d8582;
           font-size: 12px;
-          color: #7070a0;
-          margin-top: 2px;
-          font-weight: 300;
+          font-weight: 700;
+          letter-spacing: .07em;
+          text-transform: uppercase;
         }
 
-        .home-body {
-          flex: 1;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 60px 24px;
+        .official-right-title {
+          margin-top: 7px;
+          color: #7d002f;
+          font-size: 16px;
+          font-weight: 700;
         }
 
-        .home-center {
-          max-width: 560px;
-          width: 100%;
+        .flag-wrap {
+          padding: 7px;
+          border: 2px solid #e7ad18;
+          border-radius: 12px;
+          background: #fff9e8;
+        }
+
+        .official-flag {
+          display: block;
+          width: 98px;
+          height: 60px;
+          object-fit: cover;
+          border-radius: 4px;
+        }
+
+        .home-main {
+          width: min(1260px, calc(100% - 48px));
+          margin: 0 auto;
+          padding: 68px 0 72px;
+        }
+
+        .home-intro {
+          max-width: 760px;
+          margin: 0 auto 42px;
           text-align: center;
         }
 
         .home-badge {
           display: inline-flex;
           align-items: center;
-          gap: 6px;
-          background: #eeeaff;
-          color: #6c4fe0;
+          gap: 7px;
+          padding: 7px 13px;
+          border: 1px solid #eadfca;
+          border-radius: 999px;
+          background: #fffdf8;
+          color: #7d002f;
           font-size: 11px;
-          font-weight: 500;
-          letter-spacing: 0.9px;
+          font-weight: 700;
+          letter-spacing: .08em;
           text-transform: uppercase;
-          padding: 5px 14px;
-          border-radius: 20px;
-          margin-bottom: 24px;
+          margin-bottom: 20px;
         }
 
         .home-badge-dot {
-          width: 6px;
-          height: 6px;
+          width: 7px;
+          height: 7px;
           border-radius: 50%;
-          background: #6c4fe0;
-          animation: pulse 2s infinite;
+          background: #17834b;
         }
 
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.4; }
-        }
-
-        .home-center h2 {
+        .home-intro h2 {
           font-family: 'DM Serif Display', serif;
-          font-size: 38px;
+          font-size: clamp(38px, 5vw, 58px);
           font-weight: 400;
-          color: #1a1a2e;
-          line-height: 1.2;
-          letter-spacing: -0.5px;
-          margin-bottom: 14px;
+          letter-spacing: -.03em;
+          line-height: 1.06;
         }
 
-        .home-center p {
+        .home-intro p {
+          max-width: 620px;
+          margin: 16px auto 0;
+          color: #7a7a82;
           font-size: 16px;
-          color: #888;
-          font-weight: 300;
-          line-height: 1.6;
-          margin-bottom: 48px;
+          line-height: 1.7;
         }
 
-        .booking-cards {
+        .service-grid {
           display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 16px;
-          margin-bottom: 28px;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 20px;
         }
 
-        .booking-card {
+        .service-card {
+          min-height: 305px;
+          padding: 30px;
+          border: 1px solid #e4dfd6;
+          border-radius: 22px;
           background: #fff;
-          border: 1.5px solid #e8e5e0;
-          border-radius: 16px;
-          padding: 28px 24px;
-          cursor: pointer;
-          transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
           text-align: left;
+          cursor: pointer;
           display: flex;
           flex-direction: column;
-          gap: 14px;
+          transition: .18s ease;
           position: relative;
           overflow: hidden;
         }
 
-        .booking-card::after {
+        .service-card::before {
           content: '';
           position: absolute;
-          inset: 0;
-          background: linear-gradient(135deg, rgba(108,79,224,0.04) 0%, transparent 60%);
+          inset: 0 0 auto;
+          height: 4px;
+          background: #e7ad18;
           opacity: 0;
-          transition: opacity 0.2s;
+          transition: .18s ease;
         }
 
-        .booking-card:hover {
-          border-color: #6c4fe0;
-          box-shadow: 0 8px 32px rgba(108,79,224,0.1);
-          transform: translateY(-2px);
+        .service-card:hover {
+          transform: translateY(-4px);
+          border-color: #d8c99e;
+          box-shadow: 0 18px 50px rgba(44,35,22,.08);
         }
 
-        .booking-card:hover::after { opacity: 1; }
+        .service-card:hover::before { opacity: 1; }
 
-        .booking-card:active { transform: translateY(0); }
-
-        .card-icon {
-          width: 48px;
-          height: 48px;
-          border-radius: 12px;
-          background: #f0ecff;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 22px;
+        .service-icon {
+          width: 56px;
+          height: 56px;
+          border-radius: 15px;
+          display: grid;
+          place-items: center;
+          background: #f7f2e8;
+          border: 1px solid #ebe1cf;
+          font-size: 25px;
+          margin-bottom: 28px;
         }
 
-        .card-title {
+        .service-title {
           font-family: 'DM Serif Display', serif;
-          font-size: 18px;
-          font-weight: 400;
-          color: #1a1a2e;
-          margin-bottom: 4px;
+          font-size: 25px;
+          margin-bottom: 10px;
         }
 
-        .card-desc {
-          font-size: 13px;
-          color: #999;
-          line-height: 1.5;
-          font-weight: 300;
+        .service-desc {
+          color: #7f8088;
+          font-size: 14px;
+          line-height: 1.65;
         }
 
-        .card-arrow {
+        .service-bottom {
           margin-top: auto;
+          padding-top: 28px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 15px;
+        }
+
+        .service-note { color: #9a918a; font-size: 11px; }
+
+        .service-arrow {
+          width: 38px;
+          height: 38px;
+          border-radius: 50%;
+          display: grid;
+          place-items: center;
+          background: #203f69;
+          color: #fff;
+          font-size: 17px;
+        }
+
+        .home-bottom {
+          margin-top: 34px;
+          padding-top: 23px;
+          border-top: 1px solid #e6e1d9;
           display: flex;
           align-items: center;
-          gap: 6px;
-          font-size: 13px;
-          font-weight: 500;
-          color: #6c4fe0;
-          opacity: 0;
-          transform: translateX(-4px);
-          transition: opacity 0.2s, transform 0.2s;
+          justify-content: space-between;
+          gap: 20px;
         }
 
-        .booking-card:hover .card-arrow {
-          opacity: 1;
-          transform: translateX(0);
+        .security-note {
+          color: #9a948f;
+          font-size: 12px;
         }
 
-        .home-footer-note {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          font-size: 13px;
-          color: #bbb;
+        .admin-btn {
+          border: 1px solid #d7dce5;
+          background: #fff;
+          color: #40516c;
+          padding: 10px 16px;
+          border-radius: 10px;
+          cursor: pointer;
+          font-size: 12px;
+          font-weight: 700;
         }
 
-        .home-footer-note span { color: #ddd; }
+        @media (max-width: 900px) {
+          .service-grid { grid-template-columns: 1fr; }
+          .official-right-text { display: none; }
+        }
 
-        @media (max-width: 500px) {
-          .booking-cards { grid-template-columns: 1fr; }
-          .home-center h2 { font-size: 28px; }
-          .home-header { padding: 20px 24px; }
+        @media (max-width: 600px) {
+          .official-header-inner {
+            width: calc(100% - 30px);
+            padding: 18px 0;
+          }
+
+          .official-emblem {
+            width: 54px;
+            height: 70px;
+          }
+
+          .official-kicker { font-size: 10px; }
+          .official-title { font-size: 18px; }
+          .official-subtitle { font-size: 12px; }
+          .official-flag { width: 70px; height: 43px; }
+
+          .home-main {
+            width: calc(100% - 28px);
+            padding-top: 42px;
+          }
+
+          .home-bottom {
+            flex-direction: column;
+            align-items: flex-start;
+          }
         }
       `}</style>
 
-      <div className="home-root">
-     <header className="home-header">
-  <div className="home-header-inner">
+      <div className="gold-line" />
 
-    <div className="home-logo">
-      🛂
-    </div>
+      <header className="official-header">
+        <div className="official-header-inner">
+          <div className="official-brand">
+            <img
+              className="official-emblem"
+              src={EMBLEM_SRC}
+              alt="Sri Lanka emblem"
+            />
 
-    <div>
-      <h1>Passport Services</h1>
-      <div className="sub">
-        Official Appointment Booking Portal
-      </div>
-    </div>
+            <div>
+              <div className="official-kicker">
+                Official Digital Service
+              </div>
 
-    <button
-      className="admin-login-btn"
-      onClick={() =>
-        navigate("/admin-login")
-      }
-    >
-      🛡 ADMIN LOGIN
-    </button>
+              <div className="official-title">
+                Embassy of Sri Lanka in France
+              </div>
 
-  </div>
-</header>
+              <div className="official-subtitle">
+                Consular Appointment Portal
+              </div>
+            </div>
+          </div>
 
-        <div className="home-body">
-          <div className="home-center">
+          <div className="official-right">
+            <div className="official-right-text">
+              <div className="official-right-label">
+                Consular Services
+              </div>
 
-            <div className="home-badge">
-              <div className="home-badge-dot" />
-              Slots Available Now
+              <div className="official-right-title">
+                Online Appointments
+              </div>
             </div>
 
-            <h2>Book Your Passport Appointment</h2>
-            <p>Choose your booking type below to get started.</p>
-
-            <div className="booking-cards">
-              <button className="booking-card" onClick={() => navigate("/individual")}>
-                <div className="card-icon">🧑</div>
-                <div>
-                  <div className="card-title">Individual</div>
-                  <div className="card-desc">Book a single appointment for yourself with a dedicated time slot.</div>
-                </div>
-                <div className="card-arrow">Book now →</div>
-              </button>
-
-              <button className="booking-card" onClick={() => navigate("/family")}>
-                <div className="card-icon">👨‍👩‍👧</div>
-                <div>
-                  <div className="card-title">Family</div>
-                  <div className="card-desc">Schedule appointments for multiple family members in one booking.</div>
-                </div>
-                <div className="card-arrow">Book now →</div>
-              </button>
+            <div className="flag-wrap">
+              <img
+                className="official-flag"
+                src={FLAG_SRC}
+                alt="Sri Lanka flag"
+              />
             </div>
-
-            <div className="home-footer-note">
-              🔒 Secure & encrypted <span>·</span> No account required <span>·</span> Instant confirmation
-            </div>
-
           </div>
         </div>
-      </div>
+      </header>
+
+      <main className="home-main">
+        <section className="home-intro">
+          <div className="home-badge">
+            <span className="home-badge-dot" />
+            Appointment Services Available
+          </div>
+
+          <h2>How can we assist you?</h2>
+
+          <p>
+            Choose the consular service you need. Each service has its
+            own appointment calendar and availability.
+          </p>
+        </section>
+
+        <section className="service-grid">
+          {services.map((service) => (
+            <button
+              key={service.key}
+              className="service-card"
+              onClick={() => navigate(service.path)}
+            >
+              <div className="service-icon">
+                {service.icon}
+              </div>
+
+              <div className="service-title">
+                {service.title}
+              </div>
+
+              <div className="service-desc">
+                {service.description}
+              </div>
+
+              <div className="service-bottom">
+                <span className="service-note">
+                  {service.note}
+                </span>
+
+                <span className="service-arrow">
+                  →
+                </span>
+              </div>
+            </button>
+          ))}
+        </section>
+
+        <div className="home-bottom">
+          <div className="security-note">
+            🔒 Secure appointment portal · No public account required ·
+            Confirmation token provided after booking
+          </div>
+
+          <button
+            className="admin-btn"
+            onClick={() => navigate("/admin-login")}
+          >
+            🛡 Admin Login
+          </button>
+        </div>
+      </main>
     </div>
   );
 }

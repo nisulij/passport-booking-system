@@ -1,22 +1,22 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-const DEMO = [
-  { _id: "1", token: "A1042", title: "Mr",   name: "James Okafor",     email: "james.o@mail.com",  phone: "+44 7700 900123", idNumber: "NG9281733", date: "2026-05-20", slot: "9:00 - 9:05",   status: "completed" },
-  { _id: "2", token: "A1043", title: "Mrs",  name: "Fatima Al-Rashid", email: "fatima.r@mail.com", phone: "+44 7700 900456", idNumber: "SA4471920", date: "2026-05-20", slot: "9:10 - 9:15",   status: "ongoing" },
-  { _id: "3", token: "A1044", title: "Miss", name: "Priya Sharma",     email: "priya.s@mail.com",  phone: "+44 7700 900789", idNumber: "IN8832011", date: "2026-05-20", slot: "9:20 - 9:25",   status: "ongoing" },
-  { _id: "4", token: "A1045", title: "Dr",   name: "Carlos Mendez",    email: "carlos.m@mail.com", phone: "+44 7700 901011", idNumber: "MX3310482", date: "2026-05-21", slot: "10:00 - 10:05", status: "no participate" },
-  { _id: "5", token: "A1046", title: "Mr",   name: "Luca Bianchi",     email: "luca.b@mail.com",   phone: "+44 7700 901213", idNumber: "IT9920011", date: "2026-05-21", slot: "10:10 - 10:15", status: "completed" },
-  { _id: "6", token: "A1047", title: "Prof", name: "Amara Diallo",     email: "amara.d@mail.com",  phone: "+44 7700 901415", idNumber: "SN2200341", date: "2026-05-22", slot: "11:00 - 11:05", status: "ongoing" },
-  { _id: "7", token: "A1048", title: "Mrs",  name: "Yuki Tanaka",      email: "yuki.t@mail.com",   phone: "+44 7700 901617", idNumber: "JP5590112", date: "2026-05-22", slot: "11:10 - 11:15", status: "completed" },
-  { _id: "8", token: "A1049", title: "Mr",   name: "Ethan Clarke",     email: "ethan.c@mail.com",  phone: "+44 7700 901819", idNumber: "GB8810422", date: "2026-05-23", slot: "14:00 - 14:05", status: "no participate" },
-];
-
 const STATUS_CONFIG = {
   ongoing:          { label: "Ongoing",        bg: "#FFF8ED", text: "#92400E", dot: "#F59E0B", border: "#FDE68A" },
   completed:        { label: "Completed",      bg: "#ECFDF5", text: "#065F46", dot: "#10B981", border: "#A7F3D0" },
   "no participate": { label: "No Participate", bg: "#FEF2F2", text: "#991B1B", dot: "#EF4444", border: "#FECACA" },
 };
+
+
+const SERVICE_CONFIG = {
+  passport: { label: "Passport", icon: "🛂", bg: "#EFF6FF", text: "#1D4ED8", border: "#BFDBFE" },
+  birth_certificate: { label: "Birth Certificate", icon: "📜", bg: "#FFF8ED", text: "#9A5A00", border: "#F5D89A" },
+  other: { label: "Other Services", icon: "🏛", bg: "#F3F0FF", text: "#6D28D9", border: "#DDD6FE" },
+};
+
+function getServiceType(b) {
+  return b.serviceType || "passport";
+}
 
 const AVATAR_COLORS = [
   { bg: "#EDE9FE", text: "#4C1D95" },
@@ -27,8 +27,9 @@ const AVATAR_COLORS = [
   { bg: "#CFFAFE", text: "#164E63" },
 ];
 
-function getAvatarColor(name) {
-  return AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length];
+function getAvatarColor(name = "A") {
+  const safeName = String(name || "A");
+  return AVATAR_COLORS[safeName.charCodeAt(0) % AVATAR_COLORS.length];
 }
 
 // ── Stat Card ─────────────────────────────────────────────────────────────────
@@ -185,13 +186,14 @@ export default function Dashboard() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [sortField, setSortField] = useState("date");
   const [sortDir, setSortDir] = useState("desc");
-  const [bookingType, setBookingType] = useState("all");
+  const [serviceFilter, setServiceFilter] = useState("all");
+  const [passportType, setPassportType] = useState("all");
 
   useEffect(() => {
     fetch("https://passport-booking-app.onrender.com/api/admin/bookings")
       .then(r => r.json())
       .then(data => { setBookings(data); setLoading(false); })
-      .catch(() => { setBookings(DEMO); setLoading(false); });
+      .catch(() => { setBookings([]); setLoading(false); });
   }, []);
 
   const updateStatus = async (id, status) => {
@@ -212,8 +214,16 @@ export default function Dashboard() {
     absent:    bookings.filter(b => b.status === "no participate").length,
   };
 
+  const serviceCounts = {
+    passport: bookings.filter(b => getServiceType(b) === "passport").length,
+    birth: bookings.filter(b => getServiceType(b) === "birth_certificate").length,
+    other: bookings.filter(b => getServiceType(b) === "other").length,
+  };
+
   const getBookingType = (b) => {
-    if (b.token?.startsWith("F") || b.bookingType === "family") return "family";
+    if (b.bookingType === "family" || b.title === "Family" || b.token?.startsWith("F") || b.token?.startsWith("PF")) {
+      return "family";
+    }
     return "individual";
   };
 
@@ -224,9 +234,10 @@ export default function Dashboard() {
 
   const filtered = bookings.filter(b => {
     const q = search.toLowerCase();
-    if (q && !`${b.name} ${b.email} ${b.token} ${b.idNumber}`.toLowerCase().includes(q)) return false;
+    if (q && !`${b.name || ""} ${b.email || ""} ${b.token || ""} ${b.idNumber || ""} ${b.purpose || ""}`.toLowerCase().includes(q)) return false;
     if (filterStatus !== "all" && b.status !== filterStatus) return false;
-    if (bookingType !== "all" && getBookingType(b) !== bookingType) return false;
+    if (serviceFilter !== "all" && getServiceType(b) !== serviceFilter) return false;
+    if (serviceFilter === "passport" && passportType !== "all" && getBookingType(b) !== passportType) return false;
     return true;
   }).sort((a, b) => {
     let av = a[sortField] || "";
@@ -242,15 +253,17 @@ export default function Dashboard() {
   );
 
   const COL_HEADERS = [
-    { label: "Token",  field: "token"    },
-    { label: "Name",   field: "name"     },
-    { label: "Email",  field: "email"    },
-    { label: "Phone",  field: null       },
-    { label: "ID No.", field: "idNumber" },
-    { label: "Date",   field: "date"     },
-    { label: "Slot",   field: "slot"     },
-    { label: "Type",   field: null       },
-    { label: "Status", field: "status"   },
+    { label: "Token",   field: "token"       },
+    { label: "Name",    field: "name"        },
+    { label: "Service", field: "serviceType" },
+    { label: "Purpose", field: "purpose"     },
+    { label: "Email",   field: "email"       },
+    { label: "Phone",   field: null          },
+    { label: "ID No.",  field: "idNumber"    },
+    { label: "Date",    field: "date"        },
+    { label: "Slot",    field: "slot"        },
+    { label: "Booking", field: null          },
+    { label: "Status",  field: "status"      },
   ];
 
   return (
@@ -282,8 +295,8 @@ export default function Dashboard() {
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ width: 32, height: 32, borderRadius: 8, background: "#1D4ED8", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>🛂</div>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#111827", letterSpacing: "-0.2px" }}>Passport Admin</div>
-            <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 1 }}>Booking Management</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#111827", letterSpacing: "-0.2px" }}>Consular Admin</div>
+            <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 1 }}>Appointment Management</div>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
@@ -302,15 +315,15 @@ export default function Dashboard() {
         {/* Heading */}
         <div style={{ marginBottom: 28, animation: "fadeUp 0.35s ease" }}>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: "#111827", letterSpacing: "-0.5px" }}>Overview</h1>
-          <p style={{ fontSize: 13, color: "#9CA3AF", marginTop: 3 }}>Manage and monitor all appointment bookings</p>
+          <p style={{ fontSize: 13, color: "#9CA3AF", marginTop: 3 }}>Manage passport, birth certificate and other consular appointments</p>
         </div>
 
         {/* Stat cards */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 28 }}>
-          <StatCard title="Total Bookings" value={counts.total}     total={counts.total} icon="📋" accentBg="#EFF6FF" accentText="#1D4ED8" accentBorder="#BFDBFE" delay={0}   />
-          <StatCard title="Ongoing"        value={counts.ongoing}   total={counts.total} icon="⏳" accentBg="#FFF8ED" accentText="#D97706" accentBorder="#FDE68A" delay={70}  />
-          <StatCard title="Completed"      value={counts.completed} total={counts.total} icon="✅" accentBg="#ECFDF5" accentText="#059669" accentBorder="#A7F3D0" delay={140} />
-          <StatCard title="No Participate" value={counts.absent}    total={counts.total} icon="🚫" accentBg="#FEF2F2" accentText="#DC2626" accentBorder="#FECACA" delay={210} />
+          <StatCard title="Total Bookings"     value={counts.total}         total={counts.total} icon="📋" accentBg="#EFF6FF" accentText="#1D4ED8" accentBorder="#BFDBFE" delay={0} />
+          <StatCard title="Passport"           value={serviceCounts.passport} total={counts.total} icon="🛂" accentBg="#EFF6FF" accentText="#2563EB" accentBorder="#BFDBFE" delay={70} />
+          <StatCard title="Birth Certificate"  value={serviceCounts.birth}    total={counts.total} icon="📜" accentBg="#FFF8ED" accentText="#D97706" accentBorder="#FDE68A" delay={140} />
+          <StatCard title="Other Services"     value={serviceCounts.other}    total={counts.total} icon="🏛" accentBg="#F3F0FF" accentText="#7C3AED" accentBorder="#DDD6FE" delay={210} />
         </div>
 
         {/* Table card */}
@@ -328,21 +341,58 @@ export default function Dashboard() {
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              {/* Booking type toggle */}
-              <div style={{ display: "flex", gap: 2, background: "#F3F4F6", borderRadius: 10, padding: 3, border: "1px solid #E9EBF0" }}>
-                {[["all","All","📋"],["individual","Individual","👤"],["family","Family","👨‍👩‍👧"]].map(([val, label, icon]) => (
-                  <button key={val} onClick={() => setBookingType(val)} style={{
-                    padding: "6px 13px", borderRadius: 8, border: "none", cursor: "pointer",
-                    fontSize: 12, fontWeight: 600, fontFamily: "inherit",
-                    background: bookingType === val ? "#FFFFFF" : "transparent",
-                    color: bookingType === val ? "#1D4ED8" : "#6B7280",
-                    boxShadow: bookingType === val ? "0 1px 3px rgba(0,0,0,0.10)" : "none",
-                    transition: "all 0.15s",
-                  }}>{icon} {label}</button>
+              {/* Service category toggle */}
+              <div style={{ display: "flex", gap: 2, background: "#F3F4F6", borderRadius: 10, padding: 3, border: "1px solid #E9EBF0", flexWrap: "wrap" }}>
+                {[["all","All","📋"],["passport","Passport","🛂"],["birth_certificate","Birth Certificate","📜"],["other","Other","🏛"]].map(([val, label, icon]) => (
+                  <button
+                    key={val}
+                    onClick={() => {
+                      setServiceFilter(val);
+                      if (val !== "passport") setPassportType("all");
+                    }}
+                    style={{
+                      padding: "6px 13px",
+                      borderRadius: 8,
+                      border: "none",
+                      cursor: "pointer",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      fontFamily: "inherit",
+                      background: serviceFilter === val ? "#FFFFFF" : "transparent",
+                      color: serviceFilter === val ? "#1D4ED8" : "#6B7280",
+                      boxShadow: serviceFilter === val ? "0 1px 3px rgba(0,0,0,0.10)" : "none",
+                      transition: "all 0.15s",
+                    }}
+                  >
+                    {icon} {label}
+                  </button>
                 ))}
               </div>
 
-              {/* Search */}
+              {serviceFilter === "passport" && (
+                <div style={{ display: "flex", gap: 5 }}>
+                  {[["all","All Passport"],["individual","Individual"],["family","Family"]].map(([val, label]) => (
+                    <button
+                      key={val}
+                      onClick={() => setPassportType(val)}
+                      style={{
+                        padding: "6px 11px",
+                        borderRadius: 8,
+                        border: `1px solid ${passportType === val ? "#111827" : "#E9EBF0"}`,
+                        background: passportType === val ? "#111827" : "#FFFFFF",
+                        color: passportType === val ? "#FFFFFF" : "#6B7280",
+                        fontSize: 11,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+{/* Search */}
               <div style={{ position: "relative" }}>
                 <svg style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 <input
@@ -431,10 +481,39 @@ export default function Dashboard() {
                         <td style={td}>
                           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                             <div style={{ width: 32, height: 32, borderRadius: "50%", background: avatar.bg, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: avatar.text }}>
-                              {b.name.charAt(0).toUpperCase()}
+                              {String(b.name || "A").charAt(0).toUpperCase()}
                             </div>
-                            <span style={{ fontSize: 13, fontWeight: 600, color: "#111827", whiteSpace: "nowrap" }}>{b.title} {b.name}</span>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: "#111827", whiteSpace: "nowrap" }}>{getServiceType(b) === "passport" && b.title !== "Family" ? `${b.title || ""} ` : ""}{b.name}</span>
                           </div>
+                        </td>
+
+                        {/* Service */}
+                        <td style={td}>
+                          {(() => {
+                            const cfg = SERVICE_CONFIG[getServiceType(b)] || SERVICE_CONFIG.passport;
+                            return (
+                              <span style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 4,
+                                padding: "3px 10px",
+                                borderRadius: 99,
+                                background: cfg.bg,
+                                color: cfg.text,
+                                border: `1px solid ${cfg.border}`,
+                                fontSize: 11,
+                                fontWeight: 600,
+                                whiteSpace: "nowrap",
+                              }}>
+                                {cfg.icon} {cfg.label}
+                              </span>
+                            );
+                          })()}
+                        </td>
+
+                        {/* Purpose */}
+                        <td style={{ ...td, color: "#6B7280", fontSize: 12, whiteSpace: "nowrap" }}>
+                          {b.purpose || "—"}
                         </td>
 
                         {/* Email */}
@@ -464,17 +543,20 @@ export default function Dashboard() {
                             {b.slot}
                           </div>
                         </td>
-
-                        {/* Type */}
+                        {/* Booking type */}
                         <td style={td}>
-                          {getBookingType(b) === "family" ? (
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: 99, background: "#EDE9FE", color: "#5B21B6", border: "1px solid #DDD6FE", fontSize: 11, fontWeight: 600 }}>
-                              👨‍👩‍👧 Family
-                            </span>
+                          {getServiceType(b) === "passport" ? (
+                            getBookingType(b) === "family" ? (
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: 99, background: "#EDE9FE", color: "#5B21B6", border: "1px solid #DDD6FE", fontSize: 11, fontWeight: 600 }}>
+                                👨‍👩‍👧 Family
+                              </span>
+                            ) : (
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: 99, background: "#EFF6FF", color: "#1D4ED8", border: "1px solid #BFDBFE", fontSize: 11, fontWeight: 600 }}>
+                                👤 Individual
+                              </span>
+                            )
                           ) : (
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: 99, background: "#EFF6FF", color: "#1D4ED8", border: "1px solid #BFDBFE", fontSize: 11, fontWeight: 600 }}>
-                              👤 Individual
-                            </span>
+                            <span style={{ color: "#9CA3AF", fontSize: 11 }}>—</span>
                           )}
                         </td>
 
