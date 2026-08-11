@@ -1,71 +1,129 @@
 const mongoose = require("mongoose");
 
 const bookingSchema = new mongoose.Schema(
+  {
+    title: {
+      type: String,
+      required: true,
+    },
 
-{
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
 
-title:{
-type:String,
-required:true
-},
+    idNumber: {
+      type: String,
+      required: true,
+      trim: true,
+    },
 
-name:{
-type:String,
-required:true
-},
+    email: {
+      type: String,
+      required: true,
+      trim: true,
+      lowercase: true,
+    },
 
-idNumber:{
-type:String,
-required:true
-},
+    phone: {
+      type: String,
+      required: true,
+      trim: true,
+    },
 
-email:{
-type:String,
-required:true
-},
+    address: {
+      type: String,
+      default: "",
+      trim: true,
+    },
 
-phone:{
-type:String,
-required:true
-},
+    purpose: {
+      type: String,
+      default: "New Passport",
+      trim: true,
+    },
 
-address:{
-type:String
-},
+    date: {
+      type: String,
+      required: true,
+    },
 
-purpose:{
-type:String
-},
+    slot: {
+      type: String,
+      required: true,
+    },
 
-date:{
-type:String,
-required:true
-},
+    token: {
+      type: String,
+      required: true,
+    },
 
-slot:{
-type:String,
-required:true
-},
+    status: {
+      type: String,
+      enum: [
+        "ongoing",
+        "completed",
+        "no participate",
+      ],
+      default: "ongoing",
+    },
 
-token:{
-type:String
-},
+    bookingType: {
+      type: String,
+      enum: [
+        "individual",
+        "family",
+      ],
+      default: "individual",
+    },
 
-status:{
-type:String,
-default:"ongoing"
-}
+    familyId: {
+      type: String,
+      default: null,
+    },
 
-},
-
-{
-timestamps:true
-}
-
+    familyMemberNumber: {
+      type: Number,
+      default: null,
+    },
+  },
+  {
+    timestamps: true,
+  }
 );
+
+
+// =============================================
+// IMPORTANT
+// Only ONE booking can own a date + time slot
+// =============================================
+
+bookingSchema.index(
+  {
+    date: 1,
+    slot: 1,
+  },
+  {
+    unique: true,
+  }
+);
+
+
+// Token should also be unique
+
+bookingSchema.index(
+  {
+    token: 1,
+  },
+  {
+    unique: true,
+  }
+);
+
 
 module.exports =
-mongoose.model(
-"Booking",
-bookingSchema
-);
+  mongoose.model(
+    "Booking",
+    bookingSchema
+  );
