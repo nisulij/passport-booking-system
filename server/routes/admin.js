@@ -1,56 +1,11 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const nodemailer = require("nodemailer");
-const otpGenerator = require("otp-generator");
 
 const Admin = require("../models/Admin");
 const Booking = require("../models/Booking");
 
 const router = express.Router();
-
-
-// ==============================
-// GMAIL TRANSPORTER
-// ==============================
-
-const transporter = nodemailer.createTransport({
-
-  service: "gmail",
-
-  auth: {
-
-    user: process.env.EMAIL,
-
-    pass: process.env.EMAIL_PASSWORD
-
-  },
-
-  tls: {
-
-    rejectUnauthorized: false
-
-  }
-
-});
-
-
-// TEST MAIL CONNECTION
-
-transporter.verify((error, success) => {
-
-  if (error) {
-
-    console.log("MAIL ERROR:", error);
-
-  } else {
-
-    console.log("Gmail SMTP Ready");
-
-  }
-
-});
-
 
 
 // ==============================
@@ -62,24 +17,21 @@ router.get("/exists", async (req, res) => {
   try {
 
     const count =
-    await Admin.countDocuments();
+      await Admin.countDocuments();
 
     res.json({
-
       exists: count > 0
-
     });
 
-  }
+  } catch (err) {
 
-  catch (err) {
-
-    console.log(err);
+    console.log(
+      "ADMIN EXISTS ERROR:",
+      err
+    );
 
     res.status(500).json({
-
       exists: false
-
     });
 
   }
@@ -87,10 +39,8 @@ router.get("/exists", async (req, res) => {
 });
 
 
-
-
 // ==============================
-// FIRST ADMIN SIGNUP
+// FIRST ADMIN SIGNUP ONLY
 // ==============================
 
 router.post("/signup", async (req, res) => {
@@ -98,53 +48,76 @@ router.post("/signup", async (req, res) => {
   try {
 
     const count =
-    await Admin.countDocuments();
+      await Admin.countDocuments();
 
     if (count > 0) {
 
       return res.status(400).json({
-
         message: "Signup disabled"
-
       });
 
     }
 
-    const {
 
+    const {
       email,
       password
-
     } = req.body;
+
+
+    if (!email || !password) {
+
+      return res.status(400).json({
+        message: "Email and password are required"
+      });
+
+    }
+
+
+    const cleanEmail =
+      email
+        .toLowerCase()
+        .trim();
 
 
     const hash =
-    await bcrypt.hash(password, 10);
+      await bcrypt.hash(
+        password,
+        10
+      );
 
 
-    await Admin.create({
+    const admin =
+      await Admin.create({
 
-      email,
-      password: hash
+        email: cleanEmail,
 
-    });
+        password: hash
+
+      });
+
 
     res.json({
 
-      message: "Admin account created"
+      message:
+        "Admin account created",
+
+      adminId:
+        admin._id
 
     });
 
-  }
+  } catch (err) {
 
-  catch (err) {
-
-    console.log("SIGNUP ERROR:", err);
+    console.log(
+      "SIGNUP ERROR:",
+      err
+    );
 
     res.status(500).json({
-
-      message: err.message
-
+      message:
+        err.message ||
+        "Signup failed"
     });
 
   }
@@ -152,230 +125,105 @@ router.post("/signup", async (req, res) => {
 });
 
 
-
-
 // ==============================
-// LOGIN + SEND OTP
+// LOGIN DIRECTLY TO DASHBOARD
+// NO OTP
 // ==============================
 
 router.post("/login", async (req, res) => {
-
   try {
 
-    const {
+    const { email, password } = req.body;
 
-      email,
-      password
+    // =====================================
+    // TEMPORARY DEBUG - ADD HERE
+    // =====================================
 
-    } = req.body;
+    console.log("LOGIN EMAIL:", email);
+    console.log("ENV EMAIL:", process.env.ADMIN_EMAIL);
+    console.log("PASSWORD ENV LOADED:", !!process.env.ADMIN_PASSWORD);
 
-
-    const admin =
-    await Admin.findOne({ email });
-
-
-    if (!admin) {
-
-      return res.status(400).json({
-
-        message: "Admin not found"
-
-      });
-
-    }
-
-
-    const valid =
-    await bcrypt.compare(
-      password,
-      admin.password
+    console.log(
+      "PASSWORD LENGTHS:",
+      password?.length,
+      process.env.ADMIN_PASSWORD?.length
     );
 
 
-    if (!valid) {
+    // =====================================
+    // VALIDATION
+    // =====================================
 
+    if (!email || !password) {
       return res.status(400).json({
-
-        message: "Incorrect password"
-
+        message: "Email and password are required"
       });
-
     }
 
 
+    const adminEmail = process.env.ADMIN_EMAIL;
+    const adminPassword = process.env.ADMIN_PASSWORD;
 
-    // OTP
 
-    const otp =
-    otpGenerator.generate(
-      6,
+    if (!adminEmail || !adminPassword) {
+      console.log("ADMIN_EMAIL or ADMIN_PASSWORD missing");
+
+      return res.status(500).json({
+        message: "Admin credentials are not configured"
+      });
+    }
+
+
+    // CHECK EMAIL
+
+    if (
+      email.trim().toLowerCase() !==
+      adminEmail.trim().toLowerCase()
+    ) {
+      return res.status(400).json({
+        message: "Incorrect admin email"
+      });
+    }
+
+
+    // CHECK PASSWORD
+
+    if (password !== adminPassword) {
+      return res.status(400).json({
+        message: "Incorrect password"
+      });
+    }
+
+
+    // CREATE LOGIN TOKEN
+
+    const token = jwt.sign(
       {
-        upperCaseAlphabets: false,
-        lowerCaseAlphabets: false,
-        specialChars: false
+        email: adminEmail
+      },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "1d"
       }
     );
 
 
-    admin.otp = otp;
-
-    admin.otpExpiry =
-    Date.now() + 300000;
-
-    await admin.save();
-
-
-
-    // SEND EMAIL
-
-    await transporter.sendMail({
-
-      from: process.env.EMAIL,
-
-      to: email,
-
-      subject: "Passport Admin OTP",
-
-      text:
-`Your OTP Code: ${otp}
-
-This OTP expires in 5 minutes.`
-
+    return res.json({
+      message: "Login successful",
+      token
     });
 
 
-    console.log("OTP SENT:", otp);
-
-
-    res.json({
-
-      message: "OTP sent"
-
-    });
-
-  }
-
-  catch (err) {
+  } catch (err) {
 
     console.log("LOGIN ERROR:", err);
 
-    res.status(500).json({
-
-      message: err.message
-
+    return res.status(500).json({
+      message: err.message || "Login failed"
     });
 
   }
-
 });
-
-
-
-
-// ==============================
-// VERIFY OTP
-// ==============================
-
-router.post("/verify-otp", async (req, res) => {
-
-  try {
-
-    const {
-
-      email,
-      otp
-
-    } = req.body;
-
-
-    const admin =
-    await Admin.findOne({ email });
-
-
-    if (!admin) {
-
-      return res.status(400).json({
-
-        message: "Admin not found"
-
-      });
-
-    }
-
-
-    if (admin.otp !== otp) {
-
-      return res.status(400).json({
-
-        message: "Invalid OTP"
-
-      });
-
-    }
-
-
-    if (Date.now() > admin.otpExpiry) {
-
-      return res.status(400).json({
-
-        message: "OTP expired"
-
-      });
-
-    }
-
-
-
-    const token =
-    jwt.sign(
-
-      {
-
-        id: admin._id
-
-      },
-
-      process.env.JWT_SECRET,
-
-      {
-
-        expiresIn: "1d"
-
-      }
-
-    );
-
-
-    admin.otp = "";
-
-    await admin.save();
-
-
-    res.json({
-
-      message: "Success",
-
-      token
-
-    });
-
-  }
-
-  catch (err) {
-
-    console.log("VERIFY OTP ERROR:", err);
-
-    res.status(500).json({
-
-      message: err.message
-
-    });
-
-  }
-
-});
-
-
 
 
 // ==============================
@@ -387,72 +235,113 @@ router.get("/bookings", async (req, res) => {
   try {
 
     const bookings =
-    await Booking.find()
-    .sort({
+      await Booking
+        .find()
+        .sort({
+          createdAt: -1
+        });
 
-      createdAt: -1
 
-    });
+    res.json(
+      bookings
+    );
 
-    res.json(bookings);
+  } catch (err) {
 
-  }
+    console.log(
+      "BOOKINGS ERROR:",
+      err
+    );
 
-  catch (err) {
-
-    console.log(err);
-
-    res.status(500).json([]);
+    res
+      .status(500)
+      .json([]);
 
   }
 
 });
 
 
-
-
 // ==============================
-// UPDATE STATUS
+// UPDATE BOOKING STATUS
 // ==============================
 
 router.put("/status/:id", async (req, res) => {
 
   try {
 
-    await Booking.findByIdAndUpdate(
+    const {
+      status
+    } = req.body;
 
-      req.params.id,
 
-      {
+    if (!status) {
 
-        status: req.body.status
+      return res
+        .status(400)
+        .json({
+          message:
+            "Status is required"
+        });
 
-      }
+    }
 
-    );
+
+    const updatedBooking =
+      await Booking.findByIdAndUpdate(
+
+        req.params.id,
+
+        {
+          status
+        },
+
+        {
+          new: true
+        }
+
+      );
+
+
+    if (!updatedBooking) {
+
+      return res
+        .status(404)
+        .json({
+          message:
+            "Booking not found"
+        });
+
+    }
+
 
     res.json({
 
-      message: "updated"
+      message:
+        "updated",
+
+      booking:
+        updatedBooking
 
     });
 
-  }
+  } catch (err) {
 
-  catch (err) {
+    console.log(
+      "STATUS UPDATE ERROR:",
+      err
+    );
 
-    console.log(err);
 
     res.status(500).json({
-
-      message: "failed"
-
+      message:
+        err.message ||
+        "failed"
     });
 
   }
 
 });
-
 
 
 module.exports = router;
