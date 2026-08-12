@@ -14,6 +14,34 @@ function makeToken(prefix) {
   )}`;
 }
 
+async function findExistingIdentity(email, idNumber) {
+  const cleanEmail = String(email || "").trim().toLowerCase();
+  const cleanId = String(idNumber || "").trim();
+
+  const conditions = [];
+  if (cleanEmail) conditions.push({ email: cleanEmail });
+  if (cleanId) conditions.push({ idNumber: cleanId });
+
+  if (!conditions.length) return null;
+
+  return Booking.findOne({ $or: conditions });
+}
+
+function duplicateIdentityMessage(existing, email, idNumber) {
+  const cleanEmail = String(email || "").trim().toLowerCase();
+  const cleanId = String(idNumber || "").trim();
+
+  if (existing?.email === cleanEmail && existing?.idNumber === cleanId) {
+    return "This email and passport / ID number already have a booking.";
+  }
+
+  if (existing?.email === cleanEmail) {
+    return "This email address already has a booking.";
+  }
+
+  return "This passport / ID number already has a booking.";
+}
+
 // =============================================
 // GET BOOKED SLOTS FOR A SPECIFIC SERVICE + DATE
 // =============================================
@@ -172,6 +200,39 @@ router.post("/family-book", async (req, res) => {
       }
     }
 
+    const existingEmail = await Booking.findOne({
+      email: email.trim().toLowerCase(),
+    });
+
+    if (existingEmail) {
+      return res.status(400).json({
+        message: "This email address already has a booking.",
+      });
+    }
+
+    const requestedIds = members.map((member) =>
+      String(member.id || "").trim()
+    );
+
+    const uniqueIds = new Set(requestedIds);
+
+    if (uniqueIds.size !== requestedIds.length) {
+      return res.status(400).json({
+        message:
+          "The same passport / ID number cannot be used for more than one family member.",
+      });
+    }
+
+    const existingId = await Booking.findOne({
+      idNumber: { $in: requestedIds },
+    });
+
+    if (existingId) {
+      return res.status(400).json({
+        message: `Passport / ID number ${existingId.idNumber} already has a booking.`,
+      });
+    }
+
     const requestedSlots = members.map((member) => member.slot);
     const uniqueSlots = new Set(requestedSlots);
 
@@ -283,15 +344,18 @@ router.post("/book", async (req, res) => {
       });
     }
 
-    const existing = await Booking.findOne({
-      serviceType: "passport",
-      email: data.email.trim().toLowerCase(),
-      bookingType: "individual",
-    });
+    const existingIdentity = await findExistingIdentity(
+      data.email,
+      data.idNumber
+    );
 
-    if (existing) {
+    if (existingIdentity) {
       return res.status(400).json({
-        message: "This email already has an individual passport booking",
+        message: duplicateIdentityMessage(
+          existingIdentity,
+          data.email,
+          data.idNumber
+        ),
       });
     }
 
@@ -370,6 +434,21 @@ router.post("/birth-certificate-book", async (req, res) => {
       });
     }
 
+    const existingIdentity = await findExistingIdentity(
+      data.email,
+      data.idNumber
+    );
+
+    if (existingIdentity) {
+      return res.status(400).json({
+        message: duplicateIdentityMessage(
+          existingIdentity,
+          data.email,
+          data.idNumber
+        ),
+      });
+    }
+
     const slotExists = await Booking.findOne({
       serviceType: "birth_certificate",
       date: data.date,
@@ -441,6 +520,21 @@ router.post("/other-service-book", async (req, res) => {
     ) {
       return res.status(400).json({
         message: "Please complete all required fields",
+      });
+    }
+
+    const existingIdentity = await findExistingIdentity(
+      data.email,
+      data.idNumber
+    );
+
+    if (existingIdentity) {
+      return res.status(400).json({
+        message: duplicateIdentityMessage(
+          existingIdentity,
+          data.email,
+          data.idNumber
+        ),
       });
     }
 

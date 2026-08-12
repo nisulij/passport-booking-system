@@ -26,6 +26,7 @@ const bookingSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+      unique: true,
     },
 
     email: {
@@ -110,6 +111,14 @@ bookingSchema.index(
   {
     unique: true,
     name: "service_date_slot_unique",
+  }
+);
+
+bookingSchema.index(
+  { idNumber: 1 },
+  {
+    unique: true,
+    name: "idNumber_unique",
   }
 );
 

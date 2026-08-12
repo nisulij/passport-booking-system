@@ -38,7 +38,7 @@ function SlotPanel({ date, bookedSlots, loadingSlots, selectedSlot, onSelectSlot
   const hours = Array.from({ length: 4 }, (_, i) => i + 9);
 
   return (
-    <div style={styles.slotPanel}>
+    <div className="passport-slot-panel" style={styles.slotPanel}>
       {/* Header */}
       <div style={styles.slotPanelHeader}>
         <div style={styles.slotPanelTitle}>
@@ -53,7 +53,7 @@ function SlotPanel({ date, bookedSlots, loadingSlots, selectedSlot, onSelectSlot
       </div>
 
       {/* Stats row */}
-      <div style={styles.statsRow}>
+      <div className="passport-stats-row" style={styles.statsRow}>
         {[
           { val: date && !loadingSlots ? available : "—", lbl: "Available", color: "#166534" },
           { val: date && !loadingSlots ? bookedSlots.length : "—", lbl: "Booked", color: "#9a3412" },
@@ -68,7 +68,7 @@ function SlotPanel({ date, bookedSlots, loadingSlots, selectedSlot, onSelectSlot
 
       {/* Legend */}
       {date && !loadingSlots && (
-        <div style={styles.legend}>
+        <div className="passport-legend" style={styles.legend}>
           {[
             { bg: "#dbeafe", border: "#93c5fd", text: "#1e3a5f", label: "Available" },
             { bg: "#f1f5f9", border: "#cbd5e1", text: "#94a3b8", label: "Booked" },
@@ -96,13 +96,13 @@ function SlotPanel({ date, bookedSlots, loadingSlots, selectedSlot, onSelectSlot
           <p style={styles.slotHintText}>Loading slots…</p>
         </div>
       ) : (
-        <div style={styles.slotsScroll}>
+        <div className="passport-slots-scroll" style={styles.slotsScroll}>
           {hours.map(hour => {
             const hourSlots = ALL_SLOTS.filter(s => s.startsWith(`${hour}:`));
             return (
               <div key={hour} style={styles.hourGroup}>
                 <div style={styles.hourLabel}>{formatDateLabel(hour)}</div>
-                <div style={styles.pillRow}>
+                <div className="passport-pill-row" style={styles.pillRow}>
                   {hourSlots.map(slot => {
                     const isBooked = bookedSlots.includes(slot);
                     const isSelected = slot === selectedSlot;
@@ -135,7 +135,7 @@ function SlotPanel({ date, bookedSlots, loadingSlots, selectedSlot, onSelectSlot
 // ── Success Screen ───────────────────────────────────────────────────────────
 function SuccessScreen({ booking, onReset }) {
   return (
-    <div style={styles.successWrap}>
+    <div className="passport-success" style={styles.successWrap}>
       <div style={styles.successIcon}>
         <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#166534" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
@@ -200,13 +200,12 @@ export default function PassportBooking() {
     if (!form.date) return;
     setLoadingSlots(true);
     setSelectedSlot("");
-    fetch(`https://passport-booking-app.onrender.com/api/slots/${form.date}`)
+    fetch(`https://passport-booking-app.onrender.com/api/slots/passport/${form.date}`)
       .then(r => r.json())
       .then(data => setBookedSlots(data))
-      .catch(() => {
-        // Demo fallback: random booked slots
-        const n = Math.floor(Math.random() * 30) + 10;
-        setBookedSlots([...ALL_SLOTS].sort(() => Math.random() - 0.5).slice(0, n));
+      .catch((err) => {
+        console.error("SLOT LOAD ERROR:", err);
+        setBookedSlots([]);
       })
       .finally(() => setLoadingSlots(false));
   }, [form.date]);
@@ -217,6 +216,7 @@ export default function PassportBooking() {
     if (!form.id.trim()) e.id = "ID number is required";
     if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = "Valid email is required";
     if (!form.phone.trim()) e.phone = "Phone number is required";
+    else if (!/^\d{7,15}$/.test(form.phone)) e.phone = "Enter 7 to 15 digits";
     setErrors(e);
     return Object.keys(e).length === 0;
   }, [form]);
@@ -340,11 +340,163 @@ const handleSubmit = async () => {
         .primary-btn:hover:not(:disabled) { background: #162d4d !important; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(30,58,95,0.3) !important; }
         .primary-btn:active:not(:disabled) { transform: translateY(0) !important; }
         .step-tab:hover:not(.active-tab) { background: #f8fafc !important; }
+
+        /* ===== Responsive layout ===== */
+        @media (max-width: 900px) {
+          .passport-main {
+            display: flex !important;
+            flex-direction: column !important;
+            width: 100% !important;
+            max-width: 760px !important;
+            padding: 24px 20px !important;
+            gap: 18px !important;
+          }
+
+          .passport-form-card,
+          .passport-slot-panel {
+            width: 100% !important;
+            max-width: 100% !important;
+            flex: none !important;
+          }
+
+          .passport-slot-panel {
+            order: 2 !important;
+          }
+        }
+
+        @media (max-width: 600px) {
+          html,
+          body,
+          #root {
+            width: 100% !important;
+            max-width: 100% !important;
+            overflow-x: hidden !important;
+          }
+
+          .passport-header {
+            height: auto !important;
+            min-height: 64px !important;
+            padding: 10px 14px !important;
+            gap: 10px !important;
+          }
+
+          .passport-brand-wrap {
+            gap: 8px !important;
+            min-width: 0 !important;
+          }
+
+          .passport-live-pill {
+            padding: 5px 9px !important;
+            flex-shrink: 0 !important;
+          }
+
+          .passport-live-pill span {
+            font-size: 10px !important;
+            white-space: nowrap !important;
+          }
+
+          .passport-main {
+            width: 100% !important;
+            max-width: none !important;
+            padding: 14px 10px 28px !important;
+            gap: 14px !important;
+          }
+
+          .passport-form-card,
+          .passport-slot-panel {
+            width: 100% !important;
+            min-width: 0 !important;
+            padding: 16px !important;
+            border-radius: 14px !important;
+          }
+
+          .passport-step-tabs {
+            gap: 6px !important;
+            margin-bottom: 20px !important;
+          }
+
+          .passport-step-tabs > div {
+            min-width: 0 !important;
+            padding: 9px 8px !important;
+            font-size: 11px !important;
+          }
+
+          .passport-field-row {
+            display: grid !important;
+            grid-template-columns: 88px minmax(0, 1fr) !important;
+            gap: 9px !important;
+          }
+
+          .passport-field-row > div {
+            max-width: none !important;
+            min-width: 0 !important;
+          }
+
+          .passport-stats-row {
+            display: grid !important;
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            gap: 6px !important;
+          }
+
+          .passport-stats-row > div {
+            min-width: 0 !important;
+            padding: 10px 4px !important;
+          }
+
+          .passport-legend {
+            flex-wrap: wrap !important;
+            gap: 8px 12px !important;
+          }
+
+          .passport-slots-scroll {
+            max-height: none !important;
+            overflow-y: visible !important;
+            padding-right: 0 !important;
+          }
+
+          .passport-pill-row {
+            display: grid !important;
+            grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+            gap: 6px !important;
+          }
+
+          .passport-pill-row button {
+            width: 100% !important;
+            min-width: 0 !important;
+            padding: 7px 2px !important;
+            font-size: 10px !important;
+          }
+
+          .passport-success {
+            width: 100% !important;
+            padding: 4px 0 !important;
+          }
+
+          .passport-conf-row {
+            gap: 10px !important;
+            align-items: flex-start !important;
+          }
+
+          .passport-conf-row span:last-child {
+            text-align: right !important;
+            word-break: break-word !important;
+          }
+        }
+
+        @media (max-width: 390px) {
+          .passport-pill-row {
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+          }
+
+          .passport-live-pill span {
+            display: none !important;
+          }
+        }
       `}</style>
 
       {/* ── Header ── */}
-      <header style={styles.header}>
-        <div style={styles.brandWrap}>
+      <header className="passport-header" style={styles.header}>
+        <div className="passport-brand-wrap" style={styles.brandWrap}>
           <div style={styles.brandIcon}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <rect x="2" y="3" width="20" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h4"/>
@@ -355,7 +507,7 @@ const handleSubmit = async () => {
             <div style={styles.brandSub}>Official Appointment Booking</div>
           </div>
         </div>
-        <div style={styles.livePill}>
+        <div className="passport-live-pill" style={styles.livePill}>
           <div style={styles.liveDot} />
           <span style={{ fontSize: 12, color: "#166534" }}>
             {form.date && !loadingSlots
@@ -366,16 +518,16 @@ const handleSubmit = async () => {
       </header>
 
       {/* ── Body ── */}
-      <main style={styles.main}>
+      <main className="passport-main" style={styles.main}>
 
         {/* LEFT: Form card */}
-        <div style={styles.formCard}>
+        <div className="passport-form-card" style={styles.formCard}>
           {submitted && confirmedBooking ? (
             <SuccessScreen booking={confirmedBooking} onReset={handleReset} />
           ) : (
             <>
               {/* Step tabs */}
-              <div style={styles.stepTabs}>
+              <div className="passport-step-tabs" style={styles.stepTabs}>
                 {[
                   { n: 1, label: "Personal Details" },
                   { n: 2, label: "Date & Time" },
@@ -408,7 +560,7 @@ const handleSubmit = async () => {
               {/* Step 1 */}
               {step === 1 && (
                 <div style={{ animation: "fadeUp 0.25s ease" }}>
-                  <div style={styles.fieldRow}>
+                  <div className="passport-field-row" style={styles.fieldRow}>
                     <div style={{ ...styles.field, maxWidth: 90 }}>
                       <label style={styles.label}>Title</label>
                       <select style={styles.input} value={form.title} onChange={e => handleChange("title", e.target.value)}>

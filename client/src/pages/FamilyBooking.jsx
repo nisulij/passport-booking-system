@@ -66,7 +66,7 @@ export default function FamilyBooking() {
       return;
     }
 
-    fetch(`${API_BASE}/api/slots/${date}`)
+    fetch(`${API_BASE}/api/slots/passport/${date}`)
       .then((r) => r.json())
       .then((data) => setBookedSlots(Array.isArray(data) ? data : []))
       .catch(() => setBookedSlots([]));
@@ -150,8 +150,8 @@ export default function FamilyBooking() {
 
   if (done) {
     return (
-      <div style={styles.page}>
-        <div style={styles.successCard}>
+      <div className="family-page" style={styles.page}>
+        <div className="family-success-card" style={styles.successCard}>
           <div style={styles.check}>✓</div>
           <h1 style={styles.successTitle}>Family Booking Confirmed</h1>
           <p style={styles.muted}>Each member has their own token.</p>
@@ -178,10 +178,40 @@ export default function FamilyBooking() {
   }
 
   return (
-    <div style={styles.page}>
-      <div style={styles.layout}>
-        <section style={styles.card}>
-          <div style={styles.steps}>
+    <div className="family-page" style={styles.page}>
+      <style>{`
+        * { box-sizing: border-box; }
+        @media (max-width: 900px) {
+          .family-page { padding: 22px 16px !important; overflow-x: hidden !important; }
+          .family-layout { display:flex !important; flex-direction:column !important; width:100% !important; max-width:760px !important; gap:18px !important; }
+          .family-form-card,.family-slot-panel { width:100% !important; min-width:0 !important; }
+          .family-slot-panel { order:2 !important; }
+        }
+        @media (max-width: 600px) {
+          html,body,#root { width:100% !important; max-width:100% !important; overflow-x:hidden !important; }
+          .family-page { padding:12px 10px 28px !important; }
+          .family-layout { width:100% !important; max-width:none !important; margin:0 !important; gap:12px !important; }
+          .family-form-card,.family-slot-panel { width:100% !important; min-width:0 !important; padding:16px !important; border-radius:14px !important; }
+          .family-steps { grid-template-columns:1fr 1fr !important; gap:6px !important; margin-bottom:20px !important; }
+          .family-steps > div { min-width:0 !important; min-height:48px !important; padding:0 9px !important; gap:6px !important; font-size:11px !important; }
+          .family-count-row { grid-template-columns:repeat(4,minmax(0,1fr)) !important; gap:7px !important; }
+          .family-member-card { width:100% !important; min-width:0 !important; padding:14px !important; margin-top:14px !important; }
+          .family-member-card input,.family-member-card select,.family-form-card > input,.family-form-card > select { width:100% !important; min-width:0 !important; font-size:16px !important; }
+          .family-slot-member { flex-direction:column !important; align-items:stretch !important; gap:8px !important; }
+          .family-slot-member > div:last-child { width:100% !important; text-align:center !important; }
+          .family-stats-row { grid-template-columns:repeat(3,minmax(0,1fr)) !important; gap:6px !important; }
+          .family-slot-grid { grid-template-columns:repeat(4,minmax(0,1fr)) !important; gap:6px !important; }
+          .family-slot-grid button { width:100% !important; min-width:0 !important; min-height:38px !important; padding:5px 2px !important; font-size:10px !important; }
+          .family-success-card { width:100% !important; max-width:none !important; margin:0 auto !important; padding:20px 14px !important; }
+          .family-token-card { flex-direction:column !important; align-items:stretch !important; }
+          .family-token-card > div:last-child { width:100% !important; min-width:0 !important; }
+        }
+        @media (max-width:380px) { .family-slot-grid { grid-template-columns:repeat(3,minmax(0,1fr)) !important; } }
+      `}</style>
+
+      <div className="family-layout" style={styles.layout}>
+        <section className="family-form-card" style={styles.card}>
+          <div className="family-steps" style={styles.steps}>
             <div style={{ ...styles.step, ...(step === 1 ? styles.stepActive : styles.stepDone) }}>
               <span style={styles.stepCircle}>{step === 2 ? "✓" : "1"}</span>
               Personal Details
@@ -195,7 +225,7 @@ export default function FamilyBooking() {
           {step === 1 ? (
             <>
               <label style={styles.label}>Number of Family Members</label>
-              <div style={styles.countRow}>
+              <div className="family-count-row" style={styles.countRow}>
                 {[1, 2, 3, 4].map((n) => (
                   <button
                     key={n}
@@ -217,7 +247,7 @@ export default function FamilyBooking() {
               />
 
               {members.map((m, index) => (
-                <div key={index} style={styles.memberCard}>
+                <div key={index} className="family-member-card" style={styles.memberCard}>
                   <h3 style={{ marginTop: 0 }}>Member {index + 1}</h3>
 
                   <input style={styles.input} placeholder="Full Name" value={m.name} onChange={(e) => updateMember(index, "name", e.target.value)} />
@@ -257,7 +287,7 @@ export default function FamilyBooking() {
               />
 
               {members.map((m, index) => (
-                <div key={index} style={styles.slotMemberCard}>
+                <div key={index} className="family-slot-member" style={styles.slotMemberCard}>
                   <div>
                     <div style={styles.small}>MEMBER {index + 1}</div>
                     <strong>{m.name}</strong>
@@ -273,7 +303,7 @@ export default function FamilyBooking() {
           )}
         </section>
 
-        <aside style={styles.card}>
+        <aside className="family-slot-panel" style={styles.card}>
           <div style={styles.availHeader}>
             <h3 style={{ margin: 0 }}>Slot Availability</h3>
             {step === 2 && date && <span style={styles.openPill}>{available} open</span>}
@@ -286,13 +316,13 @@ export default function FamilyBooking() {
             </div>
           ) : (
             <>
-              <div style={styles.statsRow}>
+              <div className="family-stats-row" style={styles.statsRow}>
                 <Stat value={available} label="Available" />
                 <Stat value={bookedSlots.length} label="Booked" />
                 <Stat value={ALL_SLOTS.length} label="Total" />
               </div>
 
-              <div style={styles.slotGrid}>
+              <div className="family-slot-grid" style={styles.slotGrid}>
                 {ALL_SLOTS.map((slot) => {
                   const isBooked = bookedSlots.includes(slot);
                   const selectedBy = members.findIndex((m) => m.slot === slot);
