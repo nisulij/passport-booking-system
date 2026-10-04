@@ -1858,7 +1858,7 @@ router.post("/book", async (req, res) => {
 
       booking,
 
-      emailSent,
+     
 
 
 
