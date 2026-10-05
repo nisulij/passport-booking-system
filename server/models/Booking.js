@@ -26,7 +26,6 @@ const bookingSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      unique: true,
     },
 
     email: {
@@ -97,11 +96,7 @@ const bookingSchema = new mongoose.Schema(
   }
 );
 
-// IMPORTANT:
-// A time slot is unique only INSIDE the same service.
-// Example:
-// passport 09:00 can coexist with birth_certificate 09:00
-// and other 09:00 on the same date.
+// Same slot is unique only within the same service and date.
 bookingSchema.index(
   {
     serviceType: 1,
@@ -111,14 +106,6 @@ bookingSchema.index(
   {
     unique: true,
     name: "service_date_slot_unique",
-  }
-);
-
-bookingSchema.index(
-  { idNumber: 1 },
-  {
-    unique: true,
-    name: "idNumber_unique",
   }
 );
 
