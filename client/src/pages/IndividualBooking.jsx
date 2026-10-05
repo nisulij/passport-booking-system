@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { downloadIndividualConfirmation } from "../utils/downloadConfirmation";
 
 // Generate all 5-minute slots from 9am to 5pm
 function generateSlots() {
@@ -15,6 +16,7 @@ function generateSlots() {
 }
 
 const ALL_SLOTS = generateSlots();
+const MAX_BOOKABLE_SLOTS = 40;
 const TODAY = new Date().toISOString().split("T")[0];
 const API_BASE = (import.meta.env.VITE_API_URL || "https://passport-booking-app.onrender.com/api").replace(/\/$/, "");
 
@@ -90,33 +92,23 @@ function getCalendarDays(monthDate) {
 async function getAvailableSlotsForDate(dateStr) {
   if (isClosedDate(dateStr)) return [];
 
-  const [publicResponse, adminResponse] = await Promise.all([
-    fetch(`${API_BASE}/slots/passport/${encodeURIComponent(dateStr)}`),
-    fetch(`${API_BASE}/admin/appointments/passport`),
-  ]);
-
-  if (!publicResponse.ok) {
-    throw new Error(`Slot request failed (${publicResponse.status})`);
-  }
-
-  const publicData = await publicResponse.json();
-  const adminData = adminResponse.ok ? await adminResponse.json() : [];
-
-  const dateRows = (Array.isArray(adminData) ? adminData : []).filter(
-    (row) =>
-      String(row?.appointmentDate ?? row?.date ?? "").slice(0, 10) === dateStr
+  const response = await fetch(
+    `${API_BASE}/slots/passport/${encodeURIComponent(dateStr)}?t=${Date.now()}`,
+    { cache: "no-store" }
   );
 
-  const booked = normalizeBookedSlots([
-    ...(Array.isArray(publicData) ? publicData : []),
-    ...dateRows,
-  ]);
+  if (!response.ok) throw new Error(`Slot request failed (${response.status})`);
+
+  const blockedData = await response.json();
+  const booked = normalizeBookedSlots(
+    Array.isArray(blockedData) ? blockedData : []
+  );
 
   return ALL_SLOTS.filter(
     (slot) =>
       !booked.some(
-        (bookedSlot) =>
-          normalizeStartTime(bookedSlot) === normalizeStartTime(slot)
+        (blocked) =>
+          normalizeStartTime(blocked) === normalizeStartTime(slot)
       )
   );
 }
@@ -130,7 +122,11 @@ async function findNextAvailableDate(startDate) {
     if (!isClosedDate(candidate)) {
       const availableSlots = await getAvailableSlotsForDate(candidate);
 
-      if (availableSlots.length > 0) {
+      const bookedCount = ALL_SLOTS.length - availableSlots.length;
+      if (
+        availableSlots.length > 0 &&
+        bookedCount < MAX_BOOKABLE_SLOTS
+      ) {
         return {
           date: candidate,
           availableSlots,
@@ -344,10 +340,10 @@ function normalizeStartTime(value) {
   if (!raw) return "";
   if (raw.includes(" - ")) raw = raw.split(" - ")[0].trim();
 
-  let m = raw.match(/^(\\d{1,2}):(\\d{2})(?::\\d{2})?$/);
+  let m = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
   if (m) return `${String(Number(m[1])).padStart(2, "0")}:${m[2]}`;
 
-  m = raw.match(/^(\\d{1,2}):(\\d{2})(?::\\d{2})?\\s*(AM|PM)$/i);
+  m = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i);
   if (m) {
     let h = Number(m[1]);
     const ap = m[3].toUpperCase();
@@ -388,7 +384,7 @@ function randomToken() {
 
 // ── Slot Availability Panel ──────────────────────────────────────────────────
 function SlotPanel({ date, bookedSlots, loadingSlots, selectedSlot, onSelectSlot }) {
-  const available = ALL_SLOTS.length - bookedSlots.length;
+  const available = Math.max(0, Math.min(ALL_SLOTS.length - bookedSlots.length, MAX_BOOKABLE_SLOTS - bookedSlots.length));
   const hours = Array.from({ length: 4 }, (_, i) => i + 9);
 
   return (
@@ -458,7 +454,15 @@ function SlotPanel({ date, bookedSlots, loadingSlots, selectedSlot, onSelectSlot
                 <div style={styles.hourLabel}>{formatDateLabel(hour)}</div>
                 <div className="passport-pill-row" style={styles.pillRow}>
                   {hourSlots.map(slot => {
-                    const isBooked = bookedSlots.some(booked => normalizeStartTime(booked) === normalizeStartTime(slot));
+                    const isActuallyBooked = bookedSlots.some(
+                      (booked) =>
+                        normalizeStartTime(booked) === normalizeStartTime(slot)
+                    );
+                    const isDailyLimitClosed =
+                      !isActuallyBooked &&
+                      bookedSlots.length >= MAX_BOOKABLE_SLOTS;
+
+                    const isBooked = isActuallyBooked || isDailyLimitClosed;
                     const isSelected = slot === selectedSlot;
                     return (
                       <button
@@ -518,7 +522,7 @@ function SuccessScreen({ booking, onReset }) {
         ))}
       </div>
 
-      <button style={styles.ghostBtn} onClick={onReset}>Book Another Appointment</button>
+      <button style={{ ...styles.ghostBtn, marginBottom: 10 }} onClick={() => downloadIndividualConfirmation(booking)}>Download Confirmation</button>
     </div>
   );
 }
@@ -556,32 +560,16 @@ export default function PassportBooking() {
     setLoadingSlots(true);
     setSelectedSlot("");
 
-    Promise.all([
-      fetch(`${API_BASE}/slots/passport/${encodeURIComponent(form.date)}`).then(async (r) => {
+    fetch(`${API_BASE}/slots/passport/${encodeURIComponent(form.date)}`)
+      .then(async (r) => {
         if (!r.ok) throw new Error(`Slot request failed (${r.status})`);
         return r.json();
-      }),
-      fetch(`${API_BASE}/admin/appointments/passport`).then(async (r) => {
-        if (!r.ok) return [];
-        return r.json();
-      }),
-    ])
-      .then(([publicData, adminData]) => {
-        const dateRows = (Array.isArray(adminData) ? adminData : []).filter(
-          (row) =>
-            String(row?.appointmentDate ?? row?.date ?? "").slice(0, 10) === form.date
-        );
-
-        setBookedSlots(
-          normalizeBookedSlots([
-            ...(Array.isArray(publicData) ? publicData : []),
-            ...dateRows,
-          ])
-        );
+      })
+      .then((blockedData) => {
+        setBookedSlots(normalizeBookedSlots(Array.isArray(blockedData) ? blockedData : []));
       })
       .catch((err) => {
         console.error("SLOT LOAD ERROR:", err);
-        // Fail closed: never show every slot as available when availability cannot be loaded.
         setBookedSlots(ALL_SLOTS);
       })
       .finally(() => setLoadingSlots(false));

@@ -136,6 +136,41 @@ function normalizeStartTime(value) {
 
 
 
+function downloadBirthCertificateConfirmation({ name, date, slot, token }) {
+  const safe = (value) => String(value ?? "").replace(/[&<>\"']/g, (char) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&apos;",
+  }[char]));
+  const width = 1200, height = 760;
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>
+  <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+    <rect width="1200" height="760" fill="#f4f7fb"/>
+    <rect x="70" y="55" width="1060" height="650" rx="28" fill="#fff" stroke="#dbe4ef" stroke-width="2"/>
+    <rect x="70" y="55" width="1060" height="150" rx="28" fill="#234674"/><rect x="70" y="177" width="1060" height="28" fill="#234674"/>
+    <text x="120" y="125" fill="#fff" font-family="Arial" font-size="36" font-weight="700">EMBASSY APPOINTMENT</text>
+    <text x="120" y="165" fill="#dbe8f8" font-family="Arial" font-size="21">Appointment Confirmation</text>
+    <circle cx="1035" cy="130" r="34" fill="#eaf5ff"/><path d="M1018 130 l11 12 l24 -29" fill="none" stroke="#234674" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="120" y="270" fill="#17213a" font-family="Arial" font-size="34" font-weight="700">Booking Confirmed</text>
+    <text x="120" y="307" fill="#7084a0" font-family="Arial" font-size="20">Please bring this confirmation on your appointment day.</text>
+    <text x="120" y="370" fill="#71839d" font-family="Arial" font-size="17">SERVICE</text><text x="360" y="370" fill="#17213a" font-family="Arial" font-size="20" font-weight="700">Birth Certificate</text>
+    <text x="120" y="420" fill="#71839d" font-family="Arial" font-size="17">APPLICANT NAME</text><text x="360" y="420" fill="#17213a" font-family="Arial" font-size="20" font-weight="700">${safe(name)}</text>
+    <text x="120" y="470" fill="#71839d" font-family="Arial" font-size="17">APPOINTMENT DATE</text><text x="360" y="470" fill="#17213a" font-family="Arial" font-size="20" font-weight="700">${safe(date)}</text>
+    <text x="120" y="520" fill="#71839d" font-family="Arial" font-size="17">APPOINTMENT TIME</text><text x="360" y="520" fill="#17213a" font-family="Arial" font-size="20" font-weight="700">${safe(slot)}</text>
+    <rect x="730" y="350" width="330" height="155" rx="22" fill="#edf4fd"/><text x="760" y="395" fill="#234674" font-family="Arial" font-size="17" font-weight="700">APPOINTMENT TOKEN</text><text x="760" y="455" fill="#17213a" font-family="Arial" font-size="30" font-weight="700">${safe(token)}</text>
+    <text x="120" y="610" fill="#e01f26" font-family="Arial" font-size="18">Please bring this confirmation together with your required original documents.</text>
+    <text x="120" y="650" fill="#91a2b9" font-family="Arial" font-size="15">Embassy Appointment System</text>
+  </svg>`;
+  const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
+  const image = new Image();
+  image.onload = () => {
+    const canvas = document.createElement("canvas"); canvas.width = width * 2; canvas.height = height * 2;
+    const ctx = canvas.getContext("2d"); ctx.scale(2, 2); ctx.drawImage(image, 0, 0, width, height); URL.revokeObjectURL(url);
+    const link = document.createElement("a"); link.download = `Birth-Certificate-Appointment-${String(token || "confirmation").replace(/[^a-zA-Z0-9_-]/g, "_")}.png`; link.href = canvas.toDataURL("image/png"); link.click();
+  };
+  image.onerror = () => { URL.revokeObjectURL(url); alert("Unable to download the confirmation image. Please try again."); };
+  image.src = url;
+}
+
+
 function normalizeBookedSlots(data) {
 
   const values = Array.isArray(data) ? data : [];
@@ -535,15 +570,23 @@ export default function BirthCertificateBooking() {
 
 
             <button
-
               className="bc-primary"
-
-              onClick={() => navigate("/")}
-
+              onClick={() => downloadBirthCertificateConfirmation({
+                name: form.name,
+                date: form.date,
+                slot: form.slot,
+                token,
+              })}
             >
+              Download Appointment Confirmation
+            </button>
 
+            <button
+              className="bc-primary"
+              onClick={() => navigate("/")}
+              style={{ marginTop: 12 }}
+            >
               Return to Services
-
             </button>
 
           </section>

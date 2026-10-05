@@ -1,7 +1,93 @@
 const express = require("express");
 const router = express.Router();
 const Booking = require("../models/Booking");
+const ImportedAppointment = require("../models/ImportedAppointment");
 const nodemailer = require("nodemailer");
+
+// -------------------------------------------------
+// BOOKING HELPERS
+// -------------------------------------------------
+
+const SERVICES = ["passport", "birth_certificate", "other"];
+
+function cleanServiceType(value) {
+  return SERVICES.includes(value) ? value : null;
+}
+
+function makeToken(prefix) {
+  return `${prefix}-${Date.now().toString().slice(-8)}-${Math.floor(
+    100 + Math.random() * 900
+  )}`;
+}
+
+async function findExistingIdentity(email, idNumber, serviceType) {
+  const cleanEmail = String(email || "").trim().toLowerCase();
+  const cleanId = String(idNumber || "").trim();
+
+  const conditions = [];
+  if (cleanEmail) conditions.push({ email: cleanEmail });
+  if (cleanId) conditions.push({ idNumber: cleanId });
+
+  if (!conditions.length) return null;
+
+  return Booking.findOne({
+    serviceType,
+    $or: conditions,
+  });
+}
+
+function duplicateIdentityMessage(existing, email, idNumber) {
+  const cleanEmail = String(email || "").trim().toLowerCase();
+  const cleanId = String(idNumber || "").trim();
+
+  if (
+    existing?.email === cleanEmail &&
+    existing?.idNumber === cleanId
+  ) {
+    return "This email and passport / ID number already have a booking.";
+  }
+
+  if (existing?.email === cleanEmail) {
+    return "This email address already has a booking.";
+  }
+
+  return "This passport / ID number already has a booking.";
+}
+
+const MAX_PASSPORT_APPOINTMENTS_PER_DAY = 40;
+
+function normalizeSlot(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  const range = raw.match(/^(\d{1,2}:\d{2})/);
+  if (range) return range[1].padStart(5, "0");
+  return raw;
+}
+
+async function getBlockedSlots(serviceType, date) {
+  const liveBookings = await Booking.find(
+    { serviceType, date },
+    { slot: 1, _id: 0 }
+  ).lean();
+
+  if (serviceType !== "passport") {
+    return liveBookings.map((x) => x.slot).filter(Boolean);
+  }
+
+  const importedAppointments = await ImportedAppointment.find(
+    { serviceType: "passport", appointmentDate: date },
+    { appointmentTime: 1, _id: 0 }
+  ).lean();
+
+  return [
+    ...liveBookings.map((x) => x.slot),
+    ...importedAppointments.map((x) => x.appointmentTime),
+  ]
+    .filter(Boolean)
+    .map(normalizeSlot);
+}
+
+
 // -------------------------------------------------
 // EMAIL CONFIRMATIONS
 // -------------------------------------------------
@@ -154,49 +240,6 @@ Please bring the required documents and arrive on time.`,
   }
 }
 
-const SERVICES = ["passport", "birth_certificate", "other"];
-
-function cleanServiceType(value) {
-  return SERVICES.includes(value) ? value : null;
-}
-
-function makeToken(prefix) {
-  return `${prefix}-${Date.now().toString().slice(-8)}-${Math.floor(
-    100 + Math.random() * 900
-  )}`;
-}
-
-async function findExistingIdentity(email, idNumber, serviceType) {
-  const cleanEmail = String(email || "").trim().toLowerCase();
-  const cleanId = String(idNumber || "").trim();
-
-  const conditions = [];
-  if (cleanEmail) conditions.push({ email: cleanEmail });
-  if (cleanId) conditions.push({ idNumber: cleanId });
-
-  if (!conditions.length) return null;
-
-  return Booking.findOne({
-    serviceType,
-    $or: conditions,
-  });
-}
-
-function duplicateIdentityMessage(existing, email, idNumber) {
-  const cleanEmail = String(email || "").trim().toLowerCase();
-  const cleanId = String(idNumber || "").trim();
-
-  if (existing?.email === cleanEmail && existing?.idNumber === cleanId) {
-    return "This email and passport / ID number already have a booking.";
-  }
-
-  if (existing?.email === cleanEmail) {
-    return "This email address already has a booking.";
-  }
-
-  return "This passport / ID number already has a booking.";
-}
-
 // =============================================
 // GET BOOKED SLOTS FOR A SPECIFIC SERVICE + DATE
 // =============================================
@@ -204,47 +247,26 @@ router.get("/slots/:serviceType/:date", async (req, res) => {
   try {
     const serviceType = cleanServiceType(req.params.serviceType);
     if (!serviceType) {
-      return res.status(400).json({
-        message: "Invalid service type",
-      });
+      return res.status(400).json({ message: "Invalid service type" });
     }
-    const bookings = await Booking.find(
-      {
-        serviceType,
-        date: req.params.date,
-      },
-      {
-        slot: 1,
-        _id: 0,
-      }
-    );
-    res.json(bookings.map((booking) => booking.slot));
+    const blockedSlots = await getBlockedSlots(serviceType, req.params.date);
+    res.json([...new Set(blockedSlots)]);
   } catch (err) {
     console.log("GET SERVICE SLOTS ERROR:", err);
     res.status(500).json([]);
   }
 });
-// Backward compatibility for your current passport pages.
-// You can remove this route after both passport pages use:
-// /api/slots/passport/${date}
+
 router.get("/slots/:date", async (req, res) => {
   try {
-    const bookings = await Booking.find(
-      {
-        serviceType: "passport",
-        date: req.params.date,
-      },
-      {
-        slot: 1,
-        _id: 0,
-      }
-    );
-    res.json(bookings.map((booking) => booking.slot));
+    const blockedSlots = await getBlockedSlots("passport", req.params.date);
+    res.json([...new Set(blockedSlots)]);
   } catch (err) {
     console.log("GET PASSPORT SLOTS ERROR:", err);
     res.status(500).json([]);
   }
 });
+
 // =============================================
 // GET ALL BOOKINGS
 // =============================================
@@ -298,124 +320,177 @@ router.put("/status/:id", async (req, res) => {
 });
 // =============================================
 // PASSPORT FAMILY BOOKING
+// Shared family email + address.
+// Each member has name + phone + adult/child choice.
+// Adults require ID/passport; children may have no ID/passport.
 // =============================================
 router.post("/family-book", async (req, res) => {
   try {
-    const { email, date, members } = req.body;
-    if (
-      !email ||
-      !date ||
-      !Array.isArray(members) ||
-      members.length < 1
-    ) {
+    const { email, address, date, members } = req.body;
+
+    if (!email || !address || !date || !Array.isArray(members) || members.length < 1) {
       return res.status(400).json({
-        message: "Missing family booking information",
+        message: "Please complete the family email, address, date and members.",
       });
     }
+
     if (members.length > 4) {
       return res.status(400).json({
         message: "Maximum 4 family members allowed",
       });
     }
+
     for (let i = 0; i < members.length; i++) {
       const member = members[i];
-      if (
-        !member.name ||
-        !member.id ||
-        !member.phone ||
-        !member.address ||
-        !member.purpose ||
-        !member.slot
-      ) {
+      const isChild = Boolean(member.isChild);
+      const name = String(member.name || "").trim();
+      const phone = String(member.phone || "").trim();
+      const id = String(member.id || "").trim();
+      const slot = String(member.slot || "").trim();
+
+      if (!name || !phone || !slot) {
         return res.status(400).json({
           message: `Missing information for Member ${i + 1}`,
         });
       }
+
+      if (!/^\d{7,15}$/.test(phone)) {
+        return res.status(400).json({
+          message: `Enter a valid phone number for Member ${i + 1}.`,
+        });
+      }
+
+      if (!isChild && !id) {
+        return res.status(400).json({
+          message: `Member ${i + 1} is an adult. Please enter the ID / Passport number or choose Child.`,
+        });
+      }
     }
-    const existingEmail = await Booking.findOne({
-      email: email.trim().toLowerCase(),
-    });
+
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanAddress = address.trim();
+
+    const existingEmail = await Booking.findOne({ email: cleanEmail });
     if (existingEmail) {
       return res.status(400).json({
         message: "This email address already has a booking.",
       });
     }
-    const requestedIds = members.map((member) =>
-      String(member.id || "").trim()
-    );
-    const uniqueIds = new Set(requestedIds);
-    if (uniqueIds.size !== requestedIds.length) {
+
+    const adultIds = members
+      .filter((member) => !Boolean(member.isChild))
+      .map((member) => String(member.id || "").trim())
+      .filter(Boolean);
+
+    const uniqueIds = new Set(adultIds);
+    if (uniqueIds.size !== adultIds.length) {
       return res.status(400).json({
-        message:
-          "The same passport / ID number cannot be used for more than one family member.",
+        message: "The same passport / ID number cannot be used for more than one family member.",
       });
     }
-    const existingId = await Booking.findOne({
-      idNumber: { $in: requestedIds },
-    });
-    if (existingId) {
+
+    if (adultIds.length) {
+      const existingId = await Booking.findOne({
+        idNumber: { $in: adultIds },
+      });
+
+      if (existingId) {
+        return res.status(400).json({
+          message: `Passport / ID number ${existingId.idNumber} already has a booking.`,
+        });
+      }
+    }
+
+    const [livePassportCount, importedPassportCount] = await Promise.all([
+      Booking.countDocuments({ serviceType: "passport", date }),
+      ImportedAppointment.countDocuments({
+        serviceType: "passport",
+        appointmentDate: date,
+      }),
+    ]);
+
+    const dailyPassportCount = livePassportCount + importedPassportCount;
+
+    if (dailyPassportCount + members.length > MAX_PASSPORT_APPOINTMENTS_PER_DAY) {
       return res.status(400).json({
-        message: `Passport / ID number ${existingId.idNumber} already has a booking.`,
+        message: `Only ${Math.max(0, MAX_PASSPORT_APPOINTMENTS_PER_DAY - dailyPassportCount)} passport appointment slot(s) remain for this date.`,
       });
     }
-    const requestedSlots = members.map((member) => member.slot);
+
+    const requestedSlots = members.map((member) => String(member.slot || "").trim());
     const uniqueSlots = new Set(requestedSlots);
+
     if (uniqueSlots.size !== requestedSlots.length) {
       return res.status(400).json({
         message: "Each family member must select a different time slot",
       });
     }
-    // IMPORTANT: only passport bookings block passport slots.
-    const alreadyBooked = await Booking.find({
-      serviceType: "passport",
-      date,
-      slot: {
-        $in: requestedSlots,
-      },
-    });
-    if (alreadyBooked.length > 0) {
-      const unavailable = alreadyBooked.map(
-        (booking) => booking.slot
-      );
+
+    const [alreadyBooked, importedBooked] = await Promise.all([
+      Booking.find({
+        serviceType: "passport",
+        date,
+        slot: { $in: requestedSlots },
+      }),
+      ImportedAppointment.find({
+        serviceType: "passport",
+        appointmentDate: date,
+        appointmentTime: { $in: requestedSlots.map(normalizeSlot) },
+      }),
+    ]);
+
+    if (alreadyBooked.length > 0 || importedBooked.length > 0) {
+      const unavailable = [
+        ...alreadyBooked.map((booking) => booking.slot),
+        ...importedBooked.map((booking) => booking.appointmentTime),
+      ];
+
       return res.status(400).json({
         message: `These slots are already booked: ${unavailable.join(", ")}`,
       });
     }
+
     const familyId = `F${Date.now().toString().slice(-8)}`;
     const bookingsToCreate = [];
     const tokens = [];
+
     for (let i = 0; i < members.length; i++) {
       const member = members[i];
+      const isChild = Boolean(member.isChild);
       const token = `${familyId}-${i + 1}`;
       tokens.push(token);
+
       bookingsToCreate.push({
         serviceType: "passport",
         title: "Family",
         bookingType: "family",
         familyId,
         familyMemberNumber: i + 1,
-        name: member.name.trim(),
-        idNumber: member.id.trim(),
-        phone: member.phone.trim(),
-        address: member.address.trim(),
-        purpose: member.purpose,
-        email: email.trim().toLowerCase(),
+        name: String(member.name).trim(),
+        idNumber: isChild ? "" : String(member.id || "").trim(),
+        isChild,
+        phone: String(member.phone).trim(),
+        address: cleanAddress,
+        purpose: isChild ? "Child Passport" : "New Passport",
+        email: cleanEmail,
         date,
-        slot: member.slot,
+        slot: String(member.slot).trim(),
         token,
         status: "ongoing",
       });
     }
-    await Booking.insertMany(bookingsToCreate, {
-      ordered: true,
-    });
+
+    await Booking.insertMany(bookingsToCreate, { ordered: true });
+
     const confirmations = members.map((member, index) => ({
       name: member.name,
       token: tokens[index],
       slot: member.slot,
-      purpose: member.purpose,
+      purpose: Boolean(member.isChild) ? "Child Passport" : "New Passport",
     }));
-    void sendFamilyAppointmentEmail(email, date, confirmations);
+
+    void sendFamilyAppointmentEmail(cleanEmail, date, confirmations);
+
     res.status(201).json({
       message: "Family booking successful",
       familyId,
@@ -424,12 +499,14 @@ router.post("/family-book", async (req, res) => {
     });
   } catch (err) {
     console.log("FAMILY BOOKING ERROR:", err);
+
     if (err.code === 11000) {
       return res.status(409).json({
         message:
           "One of the selected passport slots was just booked. Please refresh and choose another slot.",
       });
     }
+
     res.status(500).json({
       message: err.message || "Family booking failed",
     });
@@ -467,11 +544,48 @@ router.post("/book", async (req, res) => {
         ),
       });
     }
+    const dailyPassportCount = await Booking.countDocuments({
+      serviceType: "passport",
+      date: data.date,
+    });
+
+    if (dailyPassportCount >= MAX_PASSPORT_APPOINTMENTS_PER_DAY) {
+      return res.status(400).json({
+        message: "Passport appointments are fully booked for this date.",
+      });
+    }
+
+    const [livePassportCount, importedPassportCount] = await Promise.all([
+      Booking.countDocuments({ serviceType: "passport", date: data.date }),
+      ImportedAppointment.countDocuments({
+        serviceType: "passport",
+        appointmentDate: data.date,
+      }),
+    ]);
+
+    if (livePassportCount + importedPassportCount >= MAX_PASSPORT_APPOINTMENTS_PER_DAY) {
+      return res.status(400).json({
+        message: "Passport appointments are fully booked for this date.",
+      });
+    }
+
     const slotExists = await Booking.findOne({
       serviceType: "passport",
       date: data.date,
       slot: data.slot,
     });
+
+    const importedSlotExists = await ImportedAppointment.findOne({
+      serviceType: "passport",
+      appointmentDate: data.date,
+      appointmentTime: normalizeSlot(data.slot),
+    });
+
+    if (importedSlotExists) {
+      return res.status(400).json({
+        message: "Passport slot already booked",
+      });
+    }
     if (slotExists) {
       return res.status(400).json({
         message: "Passport slot already booked",

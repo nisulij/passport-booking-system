@@ -9,104 +9,36 @@ const bookingSchema = new mongoose.Schema(
       default: "passport",
       index: true,
     },
-
-    title: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-
-    idNumber: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-
-    email: {
-      type: String,
-      required: true,
-      trim: true,
-      lowercase: true,
-    },
-
-    phone: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-
-    address: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-
-    purpose: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-
-    date: {
-      type: String,
-      required: true,
-    },
-
-    slot: {
-      type: String,
-      required: true,
-    },
-
-    token: {
-      type: String,
-      required: true,
-      unique: true,
-    },
-
+    title: { type: String, default: "", trim: true },
+    name: { type: String, required: true, trim: true },
+    idNumber: { type: String, default: "", trim: true },
+    isChild: { type: Boolean, default: false, index: true },
+    email: { type: String, required: true, trim: true, lowercase: true },
+    phone: { type: String, required: true, trim: true },
+    address: { type: String, default: "", trim: true },
+    purpose: { type: String, default: "", trim: true },
+    date: { type: String, required: true },
+    slot: { type: String, required: true },
+    token: { type: String, required: true, unique: true },
     status: {
       type: String,
       enum: ["ongoing", "completed", "no participate"],
       default: "ongoing",
     },
-
     bookingType: {
       type: String,
       enum: ["individual", "family", "service"],
       default: "individual",
     },
-
-    familyId: {
-      type: String,
-      default: null,
-    },
-
-    familyMemberNumber: {
-      type: Number,
-      default: null,
-    },
+    familyId: { type: String, default: null },
+    familyMemberNumber: { type: Number, default: null },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-// Same slot is unique only within the same service and date.
 bookingSchema.index(
-  {
-    serviceType: 1,
-    date: 1,
-    slot: 1,
-  },
-  {
-    unique: true,
-    name: "service_date_slot_unique",
-  }
+  { serviceType: 1, date: 1, slot: 1 },
+  { unique: true, name: "service_date_slot_unique" }
 );
 
 module.exports = mongoose.model("Booking", bookingSchema);
