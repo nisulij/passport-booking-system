@@ -277,6 +277,7 @@ export default function PassportBooking() {
   const handleNext = () => { if (validateStep1()) setStep(2); };
 
 const handleSubmit = async () => {
+  if (submitting) return;
 
   const errorsObj = {};
 
@@ -294,73 +295,52 @@ const handleSubmit = async () => {
     return;
   }
 
-  try {
+  setSubmitting(true);
 
+  try {
     const response = await fetch(
-      "https://passport-booking-app.onrender.com/api/book",
+      `${API_BASE}/book`,
       {
         method: "POST",
-
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
-
         body: JSON.stringify({
-
           title: form.title,
-
           name: form.name,
-
           idNumber: form.id,
-
           email: form.email,
-
           phone: form.phone,
           address: form.address,
           purpose: form.purpose,
           date: form.date,
-
-          slot: selectedSlot
-
-        })
-
+          slot: selectedSlot,
+        }),
       }
     );
 
-    const data =
-      await response.json();
+    const data = await response.json();
 
     if (!response.ok) {
-
       throw new Error(
-        data.message ||
-        "Booking failed"
+        data.message || "Booking failed"
       );
-
     }
 
+    // BOOKING SUCCESSFUL
     setConfirmedBooking({
-
       ...form,
-
       slot: selectedSlot,
-
-      token: data.token
-
+      token: data.token,
     });
 
     setSubmitted(true);
 
+  } catch (err) {
+    alert(err.message || "Unable to complete booking");
+  } finally {
+    setSubmitting(false);
   }
-
-  catch(err){
-
-    alert(
-      err.message
-    );
-
-  }
-
 };
 
   const handleReset = () => {
