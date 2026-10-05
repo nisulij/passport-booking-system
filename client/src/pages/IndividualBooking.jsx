@@ -407,7 +407,6 @@ function SlotPanel({ date, bookedSlots, loadingSlots, selectedSlot, onSelectSlot
         {[
           { val: date && !loadingSlots ? available : "—", lbl: "Available", color: "#166534" },
           { val: date && !loadingSlots ? bookedSlots.length : "—", lbl: "Booked", color: "#9a3412" },
-          { val: date && !loadingSlots ? ALL_SLOTS.length : "—", lbl: "Total", color: "#1e3a5f" },
         ].map(({ val, lbl, color }) => (
           <div key={lbl} style={styles.statCard}>
             <div style={{ ...styles.statVal, color }}>{val}</div>
@@ -522,7 +521,19 @@ function SuccessScreen({ booking, onReset }) {
         ))}
       </div>
 
-      <button style={{ ...styles.ghostBtn, marginBottom: 10 }} onClick={() => downloadIndividualConfirmation(booking)}>Download Confirmation</button>
+      <button
+        style={{ ...styles.ghostBtn, marginBottom: 10 }}
+        onClick={async () => {
+          try {
+            await downloadIndividualConfirmation(booking);
+            window.location.assign("/");
+          } catch (error) {
+            alert(error.message || "Unable to download the confirmation.");
+          }
+        }}
+      >
+        Download Confirmation
+      </button>
     </div>
   );
 }
