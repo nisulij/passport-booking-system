@@ -2,11 +2,21 @@ const express = require("express");
 
 
 
+
+
+
+
 const router = express.Router();
 
 
 
+
+
+
+
 const Booking = require("../models/Booking");
+
+
 
 const nodemailer = require("nodemailer");
 
@@ -14,113 +24,229 @@ const nodemailer = require("nodemailer");
 
 
 
+
+
+
+
+
+
 // -------------------------------------------------
+
+
 
 // EMAIL CONFIRMATIONS
 
+
+
 // -------------------------------------------------
+
+
 
 const transporter = nodemailer.createTransport({
 
-  service: "gmail",
 
-  auth: {
 
-    user: process.env.EMAIL_USER,
+  service: "gmail",
 
-    pass: process.env.EMAIL_PASS,
 
-  },
+
+  auth: {
+
+
+
+    user: process.env.EMAIL_USER,
+
+
+
+    pass: process.env.EMAIL_PASS,
+
+
+
+  },
+
+
 
 });
 
 
 
+
+
+
+
 function serviceLabel(serviceType) {
 
-  if (serviceType === "passport") return "Passport";
 
-  if (serviceType === "birth_certificate") return "Birth Certificate";
 
-  return "Consular Service";
+  if (serviceType === "passport") return "Passport";
+
+
+
+  if (serviceType === "birth_certificate") return "Birth Certificate";
+
+
+
+  return "Consular Service";
+
+
 
 }
+
+
+
+
 
 
 
 function escapeHtml(value) {
 
-  return String(value ?? "")
 
-    .replace(/&/g, "&amp;")
 
-    .replace(/</g, "&lt;")
+  return String(value ?? "")
 
-    .replace(/>/g, "&gt;")
 
-    .replace(/"/g, "&quot;")
 
-    .replace(/'/g, "&#039;");
+    .replace(/&/g, "&amp;")
+
+
+
+    .replace(/</g, "&lt;")
+
+
+
+    .replace(/>/g, "&gt;")
+
+
+
+    .replace(/"/g, "&quot;")
+
+
+
+    .replace(/'/g, "&#039;");
+
+
 
 }
 
 
 
+
+
+
+
 async function sendAppointmentEmail(booking) {
 
-  try {
 
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
 
-      console.error("EMAIL ERROR: EMAIL_USER or EMAIL_PASS is missing in environment variables.");
-
-      return false;
-
-    }
+  try {
 
 
 
-    if (!booking?.email) {
-
-      console.error("EMAIL ERROR: Booking has no email address.");
-
-      return false;
-
-    }
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
 
 
 
-    const service = serviceLabel(booking.serviceType);
-
-    const to = String(booking.email).trim().toLowerCase();
+      console.error("EMAIL ERROR: EMAIL_USER or EMAIL_PASS is missing in environment variables.");
 
 
 
-    const info = await transporter.sendMail({
+      return false;
 
-      from: `"Passport & Consular Booking" <${process.env.EMAIL_USER}>`,
 
-      to,
 
-      subject: `Appointment Confirmed - ${service} - ${booking.token}`,
+    }
 
-      text:
+
+
+
+
+
+
+    if (!booking?.email) {
+
+
+
+      console.error("EMAIL ERROR: Booking has no email address.");
+
+
+
+      return false;
+
+
+
+    }
+
+
+
+
+
+
+
+    const service = serviceLabel(booking.serviceType);
+
+
+
+    const to = String(booking.email).trim().toLowerCase();
+
+
+
+
+
+
+
+    const info = await transporter.sendMail({
+
+
+
+      from: `"Passport & Consular Booking" <${process.env.EMAIL_USER}>`,
+
+
+
+      to,
+
+
+
+      subject: `Appointment Confirmed - ${service} - ${booking.token}`,
+
+
+
+      text:
+
+
 
 `Your ${service} appointment has been confirmed.
 
 
 
+
+
+
+
 Name: ${booking.name}
+
+
 
 Service: ${service}
 
+
+
 Date: ${booking.date}
+
+
 
 Time: ${booking.slot}
 
+
+
 Appointment Token: ${booking.token}
 
+
+
 ID / Passport Number: ${booking.idNumber}
+
+
+
+
 
 
 
@@ -128,151 +254,307 @@ Please bring your required documents and arrive on time.
 
 
 
+
+
+
+
 This is an automated confirmation email.`,
 
-      html: `
 
-        <div style="font-family:Arial,sans-serif;max-width:650px;margin:auto;padding:24px;color:#222">
 
-          <h2 style="margin-bottom:8px">Appointment Confirmed</h2>
-
-          <p>Your <strong>${escapeHtml(service)}</strong> appointment has been successfully booked.</p>
-
-          <table style="border-collapse:collapse;width:100%;margin-top:20px">
-
-            <tr><td style="padding:8px;border:1px solid #ddd"><strong>Name</strong></td><td style="padding:8px;border:1px solid #ddd">${escapeHtml(booking.name)}</td></tr>
-
-            <tr><td style="padding:8px;border:1px solid #ddd"><strong>Service</strong></td><td style="padding:8px;border:1px solid #ddd">${escapeHtml(service)}</td></tr>
-
-            <tr><td style="padding:8px;border:1px solid #ddd"><strong>Date</strong></td><td style="padding:8px;border:1px solid #ddd">${escapeHtml(booking.date)}</td></tr>
-
-            <tr><td style="padding:8px;border:1px solid #ddd"><strong>Time</strong></td><td style="padding:8px;border:1px solid #ddd">${escapeHtml(booking.slot)}</td></tr>
-
-            <tr><td style="padding:8px;border:1px solid #ddd"><strong>Appointment Token</strong></td><td style="padding:8px;border:1px solid #ddd"><strong>${escapeHtml(booking.token)}</strong></td></tr>
-
-            <tr><td style="padding:8px;border:1px solid #ddd"><strong>ID / Passport Number</strong></td><td style="padding:8px;border:1px solid #ddd">${escapeHtml(booking.idNumber)}</td></tr>
-
-          </table>
-
-          <p style="margin-top:20px">Please bring your required documents and arrive on time.</p>
-
-          <p style="font-size:12px;color:#777">This is an automated confirmation email.</p>
-
-        </div>
-
-      `,
-
-    });
+      html: `
 
 
 
-    console.log(`EMAIL SENT: ${info.messageId} -> ${to}`);
+        <div style="font-family:Arial,sans-serif;max-width:650px;margin:auto;padding:24px;color:#222">
 
-    return true;
 
-  } catch (err) {
 
-    console.error("EMAIL SEND ERROR:", err);
+          <h2 style="margin-bottom:8px">Appointment Confirmed</h2>
 
-    return false;
 
-  }
+
+          <p>Your <strong>${escapeHtml(service)}</strong> appointment has been successfully booked.</p>
+
+
+
+          <table style="border-collapse:collapse;width:100%;margin-top:20px">
+
+
+
+            <tr><td style="padding:8px;border:1px solid #ddd"><strong>Name</strong></td><td style="padding:8px;border:1px solid #ddd">${escapeHtml(booking.name)}</td></tr>
+
+
+
+            <tr><td style="padding:8px;border:1px solid #ddd"><strong>Service</strong></td><td style="padding:8px;border:1px solid #ddd">${escapeHtml(service)}</td></tr>
+
+
+
+            <tr><td style="padding:8px;border:1px solid #ddd"><strong>Date</strong></td><td style="padding:8px;border:1px solid #ddd">${escapeHtml(booking.date)}</td></tr>
+
+
+
+            <tr><td style="padding:8px;border:1px solid #ddd"><strong>Time</strong></td><td style="padding:8px;border:1px solid #ddd">${escapeHtml(booking.slot)}</td></tr>
+
+
+
+            <tr><td style="padding:8px;border:1px solid #ddd"><strong>Appointment Token</strong></td><td style="padding:8px;border:1px solid #ddd"><strong>${escapeHtml(booking.token)}</strong></td></tr>
+
+
+
+            <tr><td style="padding:8px;border:1px solid #ddd"><strong>ID / Passport Number</strong></td><td style="padding:8px;border:1px solid #ddd">${escapeHtml(booking.idNumber)}</td></tr>
+
+
+
+          </table>
+
+
+
+          <p style="margin-top:20px">Please bring your required documents and arrive on time.</p>
+
+
+
+          <p style="font-size:12px;color:#777">This is an automated confirmation email.</p>
+
+
+
+        </div>
+
+
+
+      `,
+
+
+
+    });
+
+
+
+
+
+
+
+    console.log(`EMAIL SENT: ${info.messageId} -> ${to}`);
+
+
+
+    return true;
+
+
+
+  } catch (err) {
+
+
+
+    console.error("EMAIL SEND ERROR:", err);
+
+
+
+    return false;
+
+
+
+  }
+
+
 
 }
+
+
+
+
 
 
 
 async function sendFamilyAppointmentEmail(email, date, confirmations) {
 
-  try {
 
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
 
-      console.error("EMAIL ERROR: EMAIL_USER or EMAIL_PASS is missing in environment variables.");
-
-      return false;
-
-    }
+  try {
 
 
 
-    const to = String(email || "").trim().toLowerCase();
-
-    if (!to) {
-
-      console.error("EMAIL ERROR: Family booking has no email address.");
-
-      return false;
-
-    }
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
 
 
 
-    const rows = confirmations.map((item) => `
-
-      <tr>
-
-        <td style="padding:8px;border:1px solid #ddd">${escapeHtml(item.name)}</td>
-
-        <td style="padding:8px;border:1px solid #ddd">${escapeHtml(item.slot)}</td>
-
-        <td style="padding:8px;border:1px solid #ddd"><strong>${escapeHtml(item.token)}</strong></td>
-
-      </tr>
-
-    `).join("");
+      console.error("EMAIL ERROR: EMAIL_USER or EMAIL_PASS is missing in environment variables.");
 
 
 
-    const info = await transporter.sendMail({
-
-      from: `"Passport & Consular Booking" <${process.env.EMAIL_USER}>`,
-
-      to,
-
-      subject: `Family Passport Appointments Confirmed - ${date}`,
-
-      text: `Your family passport appointments have been confirmed for ${date}.\n\n${confirmations.map((x) => `${x.name} - ${x.slot} - ${x.token}`).join("\n")}\n\nPlease bring the required documents and arrive on time.`,
-
-      html: `
-
-        <div style="font-family:Arial,sans-serif;max-width:700px;margin:auto;padding:24px;color:#222">
-
-          <h2>Family Passport Appointments Confirmed</h2>
-
-          <p>Date: <strong>${escapeHtml(date)}</strong></p>
-
-          <table style="border-collapse:collapse;width:100%;margin-top:20px">
-
-            <thead><tr><th style="padding:8px;border:1px solid #ddd;text-align:left">Member</th><th style="padding:8px;border:1px solid #ddd;text-align:left">Time</th><th style="padding:8px;border:1px solid #ddd;text-align:left">Token</th></tr></thead>
-
-            <tbody>${rows}</tbody>
-
-          </table>
-
-          <p style="margin-top:20px">Please bring the required documents and arrive on time.</p>
-
-        </div>
-
-      `,
-
-    });
+      return false;
 
 
 
-    console.log(`FAMILY EMAIL SENT: ${info.messageId} -> ${to}`);
+    }
 
-    return true;
 
-  } catch (err) {
 
-    console.error("FAMILY EMAIL SEND ERROR:", err);
 
-    return false;
 
-  }
+
+
+    const to = String(email || "").trim().toLowerCase();
+
+
+
+    if (!to) {
+
+
+
+      console.error("EMAIL ERROR: Family booking has no email address.");
+
+
+
+      return false;
+
+
+
+    }
+
+
+
+
+
+
+
+    const rows = confirmations.map((item) => `
+
+
+
+      <tr>
+
+
+
+        <td style="padding:8px;border:1px solid #ddd">${escapeHtml(item.name)}</td>
+
+
+
+        <td style="padding:8px;border:1px solid #ddd">${escapeHtml(item.slot)}</td>
+
+
+
+        <td style="padding:8px;border:1px solid #ddd"><strong>${escapeHtml(item.token)}</strong></td>
+
+
+
+      </tr>
+
+
+
+    `).join("");
+
+
+
+
+
+
+
+    const info = await transporter.sendMail({
+
+
+
+      from: `"Passport & Consular Booking" <${process.env.EMAIL_USER}>`,
+
+
+
+      to,
+
+
+
+      subject: `Family Passport Appointments Confirmed - ${date}`,
+
+
+
+      text: `Your family passport appointments have been confirmed for ${date}.\n\n${confirmations.map((x) => `${x.name} - ${x.slot} - ${x.token}`).join("\n")}\n\nPlease bring the required documents and arrive on time.`,
+
+
+
+      html: `
+
+
+
+        <div style="font-family:Arial,sans-serif;max-width:700px;margin:auto;padding:24px;color:#222">
+
+
+
+          <h2>Family Passport Appointments Confirmed</h2>
+
+
+
+          <p>Date: <strong>${escapeHtml(date)}</strong></p>
+
+
+
+          <table style="border-collapse:collapse;width:100%;margin-top:20px">
+
+
+
+            <thead><tr><th style="padding:8px;border:1px solid #ddd;text-align:left">Member</th><th style="padding:8px;border:1px solid #ddd;text-align:left">Time</th><th style="padding:8px;border:1px solid #ddd;text-align:left">Token</th></tr></thead>
+
+
+
+            <tbody>${rows}</tbody>
+
+
+
+          </table>
+
+
+
+          <p style="margin-top:20px">Please bring the required documents and arrive on time.</p>
+
+
+
+        </div>
+
+
+
+      `,
+
+
+
+    });
+
+
+
+
+
+
+
+    console.log(`FAMILY EMAIL SENT: ${info.messageId} -> ${to}`);
+
+
+
+    return true;
+
+
+
+  } catch (err) {
+
+
+
+    console.error("FAMILY EMAIL SEND ERROR:", err);
+
+
+
+    return false;
+
+
+
+  }
+
+
 
 }
+
+
+
+
+
+
+
+
 
 
 
@@ -288,15 +570,39 @@ const SERVICES = ["passport", "birth_certificate", "other"];
 
 
 
+
+
+
+
+
+
+
+
 function cleanServiceType(value) {
 
 
 
-  return SERVICES.includes(value) ? value : null;
+
+
+
+
+  return SERVICES.includes(value) ? value : null;
+
+
+
+
 
 
 
 }
+
+
+
+
+
+
+
+
 
 
 
@@ -308,15 +614,31 @@ function makeToken(prefix) {
 
 
 
-  return `${prefix}-${Date.now().toString().slice(-8)}-${Math.floor(
 
 
 
-    100 + Math.random() * 900
+
+  return `${prefix}-${Date.now().toString().slice(-8)}-${Math.floor(
 
 
 
-  )}`;
+
+
+
+
+    100 + Math.random() * 900
+
+
+
+
+
+
+
+  )}`;
+
+
+
+
 
 
 
@@ -328,15 +650,6 @@ function makeToken(prefix) {
 
 
 
-async function findExistingIdentity(email, idNumber) {
-
-
-
-  const cleanEmail = String(email || "").trim().toLowerCase();
-
-
-
-  const cleanId = String(idNumber || "").trim();
 
 
 
@@ -344,39 +657,38 @@ async function findExistingIdentity(email, idNumber) {
 
 
 
-  const conditions = [];
+
+async function findExistingIdentity(email, idNumber, serviceType) {
 
 
 
-  if (cleanEmail) conditions.push({ email: cleanEmail });
+  const cleanEmail = String(email || "").trim().toLowerCase();
+
+  const cleanId = String(idNumber || "").trim();
 
 
 
-  if (cleanId) conditions.push({ idNumber: cleanId });
+  const conditions = [];
+
+  if (cleanEmail) conditions.push({ email: cleanEmail });
+
+  if (cleanId) conditions.push({ idNumber: cleanId });
 
 
 
+  if (!conditions.length) return null;
 
 
 
+  return Booking.findOne({
 
-  if (!conditions.length) return null;
+    serviceType,
 
+    $or: conditions,
 
-
-
-
-
-
-  return Booking.findOne({ $or: conditions });
-
-
+  });
 
 }
-
-
-
-
 
 
 
@@ -384,27 +696,11 @@ function duplicateIdentityMessage(existing, email, idNumber) {
 
 
 
-  const cleanEmail = String(email || "").trim().toLowerCase();
-
-
-
-  const cleanId = String(idNumber || "").trim();
 
 
 
 
-
-
-
-  if (existing?.email === cleanEmail && existing?.idNumber === cleanId) {
-
-
-
-    return "This email and passport / ID number already have a booking.";
-
-
-
-  }
+  const cleanEmail = String(email || "").trim().toLowerCase();
 
 
 
@@ -412,15 +708,7 @@ function duplicateIdentityMessage(existing, email, idNumber) {
 
 
 
-  if (existing?.email === cleanEmail) {
-
-
-
-    return "This email address already has a booking.";
-
-
-
-  }
+  const cleanId = String(idNumber || "").trim();
 
 
 
@@ -428,7 +716,83 @@ function duplicateIdentityMessage(existing, email, idNumber) {
 
 
 
-  return "This passport / ID number already has a booking.";
+
+
+
+
+
+
+
+
+  if (existing?.email === cleanEmail && existing?.idNumber === cleanId) {
+
+
+
+
+
+
+
+    return "This email and passport / ID number already have a booking.";
+
+
+
+
+
+
+
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  if (existing?.email === cleanEmail) {
+
+
+
+
+
+
+
+    return "This email address already has a booking.";
+
+
+
+
+
+
+
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  return "This passport / ID number already has a booking.";
+
+
+
+
 
 
 
@@ -440,7 +804,19 @@ function duplicateIdentityMessage(existing, email, idNumber) {
 
 
 
+
+
+
+
+
+
+
+
 // =============================================
+
+
+
+
 
 
 
@@ -448,7 +824,19 @@ function duplicateIdentityMessage(existing, email, idNumber) {
 
 
 
+
+
+
+
 // =============================================
+
+
+
+
+
+
+
+
 
 
 
@@ -460,79 +848,69 @@ router.get("/slots/:serviceType/:date", async (req, res) => {
 
 
 
-  try {
 
 
 
-    const serviceType = cleanServiceType(req.params.serviceType);
 
+  try {
 
 
 
 
 
 
-    if (!serviceType) {
 
+    const serviceType = cleanServiceType(req.params.serviceType);
 
 
-      return res.status(400).json({
 
 
 
-        message: "Invalid service type",
 
 
 
-      });
 
 
 
-    }
 
 
 
 
+    if (!serviceType) {
 
 
 
-    const bookings = await Booking.find(
 
 
 
-      {
 
+      return res.status(400).json({
 
 
-        serviceType,
 
 
 
-        date: req.params.date,
 
 
+        message: "Invalid service type",
 
-      },
 
 
 
-      {
 
 
 
-        slot: 1,
+      });
 
 
 
-        _id: 0,
 
 
 
-      }
 
+    }
 
 
-    );
 
 
 
@@ -540,27 +918,149 @@ router.get("/slots/:serviceType/:date", async (req, res) => {
 
 
 
-    res.json(bookings.map((booking) => booking.slot));
 
 
 
-  } catch (err) {
 
 
 
-    console.log("GET SERVICE SLOTS ERROR:", err);
+    const bookings = await Booking.find(
 
 
 
-    res.status(500).json([]);
 
 
 
-  }
+
+      {
+
+
+
+
+
+
+
+        serviceType,
+
+
+
+
+
+
+
+        date: req.params.date,
+
+
+
+
+
+
+
+      },
+
+
+
+
+
+
+
+      {
+
+
+
+
+
+
+
+        slot: 1,
+
+
+
+
+
+
+
+        _id: 0,
+
+
+
+
+
+
+
+      }
+
+
+
+
+
+
+
+    );
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    res.json(bookings.map((booking) => booking.slot));
+
+
+
+
+
+
+
+  } catch (err) {
+
+
+
+
+
+
+
+    console.log("GET SERVICE SLOTS ERROR:", err);
+
+
+
+
+
+
+
+    res.status(500).json([]);
+
+
+
+
+
+
+
+  }
+
+
+
+
 
 
 
 });
+
+
+
+
+
+
+
+
 
 
 
@@ -572,7 +1072,15 @@ router.get("/slots/:serviceType/:date", async (req, res) => {
 
 
 
+
+
+
+
 // You can remove this route after both passport pages use:
+
+
+
+
 
 
 
@@ -580,51 +1088,19 @@ router.get("/slots/:serviceType/:date", async (req, res) => {
 
 
 
+
+
+
+
 router.get("/slots/:date", async (req, res) => {
 
 
 
-  try {
 
 
 
-    const bookings = await Booking.find(
 
-
-
-      {
-
-
-
-        serviceType: "passport",
-
-
-
-        date: req.params.date,
-
-
-
-      },
-
-
-
-      {
-
-
-
-        slot: 1,
-
-
-
-        _id: 0,
-
-
-
-      }
-
-
-
-    );
+  try {
 
 
 
@@ -632,23 +1108,131 @@ router.get("/slots/:date", async (req, res) => {
 
 
 
-    res.json(bookings.map((booking) => booking.slot));
+    const bookings = await Booking.find(
 
 
 
-  } catch (err) {
 
 
 
-    console.log("GET PASSPORT SLOTS ERROR:", err);
+
+      {
 
 
 
-    res.status(500).json([]);
 
 
 
-  }
+
+        serviceType: "passport",
+
+
+
+
+
+
+
+        date: req.params.date,
+
+
+
+
+
+
+
+      },
+
+
+
+
+
+
+
+      {
+
+
+
+
+
+
+
+        slot: 1,
+
+
+
+
+
+
+
+        _id: 0,
+
+
+
+
+
+
+
+      }
+
+
+
+
+
+
+
+    );
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    res.json(bookings.map((booking) => booking.slot));
+
+
+
+
+
+
+
+  } catch (err) {
+
+
+
+
+
+
+
+    console.log("GET PASSPORT SLOTS ERROR:", err);
+
+
+
+
+
+
+
+    res.status(500).json([]);
+
+
+
+
+
+
+
+  }
+
+
+
+
 
 
 
@@ -660,7 +1244,19 @@ router.get("/slots/:date", async (req, res) => {
 
 
 
+
+
+
+
+
+
+
+
 // =============================================
+
+
+
+
 
 
 
@@ -668,7 +1264,19 @@ router.get("/slots/:date", async (req, res) => {
 
 
 
+
+
+
+
 // =============================================
+
+
+
+
+
+
+
+
 
 
 
@@ -680,19 +1288,11 @@ router.get("/bookings", async (req, res) => {
 
 
 
-  try {
 
 
 
-    const bookings = await Booking.find().sort({
 
-
-
-      createdAt: -1,
-
-
-
-    });
+  try {
 
 
 
@@ -700,23 +1300,75 @@ router.get("/bookings", async (req, res) => {
 
 
 
-    res.json(bookings);
+    const bookings = await Booking.find().sort({
 
 
 
-  } catch (err) {
 
 
 
-    console.log("GET BOOKINGS ERROR:", err);
+
+      createdAt: -1,
 
 
 
-    res.status(500).json([]);
 
 
 
-  }
+
+    });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    res.json(bookings);
+
+
+
+
+
+
+
+  } catch (err) {
+
+
+
+
+
+
+
+    console.log("GET BOOKINGS ERROR:", err);
+
+
+
+
+
+
+
+    res.status(500).json([]);
+
+
+
+
+
+
+
+  }
+
+
+
+
 
 
 
@@ -728,7 +1380,19 @@ router.get("/bookings", async (req, res) => {
 
 
 
+
+
+
+
+
+
+
+
 // =============================================
+
+
+
+
 
 
 
@@ -736,7 +1400,19 @@ router.get("/bookings", async (req, res) => {
 
 
 
+
+
+
+
 // =============================================
+
+
+
+
+
+
+
+
 
 
 
@@ -748,83 +1424,73 @@ router.put("/status/:id", async (req, res) => {
 
 
 
-  try {
 
 
 
-    const { status } = req.body;
 
+  try {
 
 
 
 
 
 
-    const allowedStatuses = [
 
+    const { status } = req.body;
 
 
-      "ongoing",
 
 
 
-      "completed",
 
 
 
-      "no participate",
 
 
 
-    ];
 
 
 
 
+    const allowedStatuses = [
 
 
 
-    if (!allowedStatuses.includes(status)) {
 
 
 
-      return res.status(400).json({
 
+      "ongoing",
 
 
-        message: "Invalid status",
 
 
 
-      });
 
 
+      "completed",
 
-    }
 
 
 
 
 
 
+      "no participate",
 
-    const updated = await Booking.findByIdAndUpdate(
 
 
 
-      req.params.id,
 
 
 
-      { status },
+    ];
 
 
 
-      { new: true }
 
 
 
-    );
 
 
 
@@ -832,67 +1498,229 @@ router.put("/status/:id", async (req, res) => {
 
 
 
-    if (!updated) {
 
 
+    if (!allowedStatuses.includes(status)) {
 
-      return res.status(404).json({
 
 
 
-        message: "Booking not found",
 
 
 
-      });
+      return res.status(400).json({
 
 
 
-    }
 
 
 
 
+        message: "Invalid status",
 
 
 
-    res.json({
 
 
 
-      message: "updated",
 
+      });
 
 
-      booking: updated,
 
 
 
-    });
 
 
+    }
 
-  } catch (err) {
 
 
 
-    console.log("STATUS ERROR:", err);
 
 
 
-    res.status(500).json({
 
 
 
-      message: "Update failed",
 
 
 
-    });
 
 
+    const updated = await Booking.findByIdAndUpdate(
 
-  }
+
+
+
+
+
+
+      req.params.id,
+
+
+
+
+
+
+
+      { status },
+
+
+
+
+
+
+
+      { new: true }
+
+
+
+
+
+
+
+    );
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    if (!updated) {
+
+
+
+
+
+
+
+      return res.status(404).json({
+
+
+
+
+
+
+
+        message: "Booking not found",
+
+
+
+
+
+
+
+      });
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    res.json({
+
+
+
+
+
+
+
+      message: "updated",
+
+
+
+
+
+
+
+      booking: updated,
+
+
+
+
+
+
+
+    });
+
+
+
+
+
+
+
+  } catch (err) {
+
+
+
+
+
+
+
+    console.log("STATUS ERROR:", err);
+
+
+
+
+
+
+
+    res.status(500).json({
+
+
+
+
+
+
+
+      message: "Update failed",
+
+
+
+
+
+
+
+    });
+
+
+
+
+
+
+
+  }
+
+
+
+
 
 
 
@@ -904,7 +1732,19 @@ router.put("/status/:id", async (req, res) => {
 
 
 
+
+
+
+
+
+
+
+
 // =============================================
+
+
+
+
 
 
 
@@ -912,7 +1752,19 @@ router.put("/status/:id", async (req, res) => {
 
 
 
+
+
+
+
 // =============================================
+
+
+
+
+
+
+
+
 
 
 
@@ -924,203 +1776,179 @@ router.post("/family-book", async (req, res) => {
 
 
 
-  try {
 
 
 
-    const { email, date, members } = req.body;
 
+  try {
 
 
 
 
 
 
-    if (
 
+    const { email, date, members } = req.body;
 
 
-      !email ||
 
 
 
-      !date ||
 
 
 
-      !Array.isArray(members) ||
 
 
 
-      members.length < 1
 
 
 
-    ) {
 
+    if (
 
 
-      return res.status(400).json({
 
 
 
-        message: "Missing family booking information",
 
 
+      !email ||
 
-      });
 
 
 
-    }
 
 
 
+      !date ||
 
 
 
 
-    if (members.length > 4) {
 
 
 
-      return res.status(400).json({
+      !Array.isArray(members) ||
 
 
 
-        message: "Maximum 4 family members allowed",
 
 
 
-      });
 
+      members.length < 1
 
 
-    }
 
 
 
 
 
+    ) {
 
 
-    for (let i = 0; i < members.length; i++) {
 
 
 
-      const member = members[i];
 
 
+      return res.status(400).json({
 
 
 
 
 
-      if (
 
 
+        message: "Missing family booking information",
 
-        !member.name ||
 
 
 
-        !member.id ||
 
 
 
-        !member.phone ||
+      });
 
 
 
-        !member.address ||
 
 
 
-        !member.purpose ||
 
+    }
 
 
-        !member.slot
 
 
 
-      ) {
 
 
 
-        return res.status(400).json({
 
 
 
-          message: `Missing information for Member ${i + 1}`,
 
 
 
-        });
 
+    if (members.length > 4) {
 
 
-      }
 
 
 
-    }
 
 
+      return res.status(400).json({
 
 
 
 
 
-    const existingEmail = await Booking.findOne({
 
 
+        message: "Maximum 4 family members allowed",
 
-      email: email.trim().toLowerCase(),
 
 
 
-    });
 
 
 
+      });
 
 
 
 
-    if (existingEmail) {
 
 
 
-      return res.status(400).json({
+    }
 
 
 
-        message: "This email address already has a booking.",
 
 
 
-      });
 
 
 
-    }
 
 
 
 
 
 
+    for (let i = 0; i < members.length; i++) {
 
-    const requestedIds = members.map((member) =>
 
 
 
-      String(member.id || "").trim()
 
 
 
-    );
+      const member = members[i];
 
 
 
@@ -1128,7 +1956,6 @@ router.post("/family-book", async (req, res) => {
 
 
 
-    const uniqueIds = new Set(requestedIds);
 
 
 
@@ -1136,27 +1963,24 @@ router.post("/family-book", async (req, res) => {
 
 
 
-    if (uniqueIds.size !== requestedIds.length) {
 
+      if (
 
 
-      return res.status(400).json({
 
 
 
-        message:
 
 
+        !member.name ||
 
-          "The same passport / ID number cannot be used for more than one family member.",
 
 
 
-      });
 
 
 
-    }
+        !member.id ||
 
 
 
@@ -1164,51 +1988,47 @@ router.post("/family-book", async (req, res) => {
 
 
 
-    const existingId = await Booking.findOne({
+        !member.phone ||
 
 
 
-      idNumber: { $in: requestedIds },
 
 
 
-    });
 
+        !member.address ||
 
 
 
 
 
 
-    if (existingId) {
 
+        !member.purpose ||
 
 
-      return res.status(400).json({
 
 
 
-        message: `Passport / ID number ${existingId.idNumber} already has a booking.`,
 
 
+        !member.slot
 
-      });
 
 
 
-    }
 
 
 
+      ) {
 
 
 
 
-    const requestedSlots = members.map((member) => member.slot);
 
 
 
-    const uniqueSlots = new Set(requestedSlots);
+        return res.status(400).json({
 
 
 
@@ -1216,79 +2036,69 @@ router.post("/family-book", async (req, res) => {
 
 
 
-    if (uniqueSlots.size !== requestedSlots.length) {
+          message: `Missing information for Member ${i + 1}`,
 
 
 
-      return res.status(400).json({
 
 
 
-        message: "Each family member must select a different time slot",
 
+        });
 
 
-      });
 
 
 
-    }
 
 
+      }
 
 
 
 
 
-    // IMPORTANT: only passport bookings block passport slots.
 
 
+    }
 
-    const alreadyBooked = await Booking.find({
 
 
 
-      serviceType: "passport",
 
 
 
-      date,
 
 
 
-      slot: {
 
 
 
-        $in: requestedSlots,
 
 
+    const existingEmail = await Booking.findOne({
 
-      },
 
 
 
-    });
 
 
 
+      email: email.trim().toLowerCase(),
 
 
 
 
-    if (alreadyBooked.length > 0) {
 
 
 
-      const unavailable = alreadyBooked.map(
+    });
 
 
 
-        (booking) => booking.slot
 
 
 
-      );
 
 
 
@@ -1296,19 +2106,17 @@ router.post("/family-book", async (req, res) => {
 
 
 
-      return res.status(400).json({
 
 
+    if (existingEmail) {
 
-        message: `These slots are already booked: ${unavailable.join(", ")}`,
 
 
 
-      });
 
 
 
-    }
+      return res.status(400).json({
 
 
 
@@ -1316,31 +2124,28 @@ router.post("/family-book", async (req, res) => {
 
 
 
-    const familyId = `F${Date.now().toString().slice(-8)}`;
+        message: "This email address already has a booking.",
 
 
 
-    const bookingsToCreate = [];
 
 
 
-    const tokens = [];
 
+      });
 
 
 
 
 
 
-    for (let i = 0; i < members.length; i++) {
 
+    }
 
 
-      const member = members[i];
 
 
 
-      const token = `${familyId}-${i + 1}`;
 
 
 
@@ -1348,215 +2153,902 @@ router.post("/family-book", async (req, res) => {
 
 
 
-      tokens.push(token);
 
 
 
+    const requestedIds = members.map((member) =>
 
 
 
 
-      bookingsToCreate.push({
 
 
 
-        serviceType: "passport",
+      String(member.id || "").trim()
 
 
 
-        title: "Family",
 
 
 
-        bookingType: "family",
 
+    );
 
 
-        familyId,
 
 
 
-        familyMemberNumber: i + 1,
 
 
 
-        name: member.name.trim(),
 
 
 
-        idNumber: member.id.trim(),
 
 
 
-        phone: member.phone.trim(),
 
+    const uniqueIds = new Set(requestedIds);
 
 
-        address: member.address.trim(),
 
 
 
-        purpose: member.purpose,
 
 
 
-        email: email.trim().toLowerCase(),
 
 
 
-        date,
 
 
 
-        slot: member.slot,
 
+    if (uniqueIds.size !== requestedIds.length) {
 
 
-        token,
 
 
 
-        status: "ongoing",
 
 
+      return res.status(400).json({
 
-      });
 
 
 
-    }
 
 
 
+        message:
 
 
 
 
-    await Booking.insertMany(bookingsToCreate, {
 
 
 
-      ordered: true,
+          "The same passport / ID number cannot be used for more than one family member.",
 
 
 
-    });
 
 
 
 
+      });
 
 
 
-    const confirmations = members.map((member, index) => ({
 
 
 
-      name: member.name,
 
+    }
 
 
-      token: tokens[index],
 
 
 
-      slot: member.slot,
 
 
 
-      purpose: member.purpose,
 
 
 
-    }));
 
 
 
 
+    const existingId = await Booking.findOne({
 
 
 
-    void sendFamilyAppointmentEmail(email, date, confirmations);
 
 
 
-    res.status(201).json({
 
+      idNumber: { $in: requestedIds },
 
 
-      message: "Family booking successful",
 
 
 
-      familyId,
 
 
+    });
 
-      tokens,
 
 
 
-      confirmations,
 
 
 
-    });
 
 
 
-  } catch (err) {
 
 
 
-    console.log("FAMILY BOOKING ERROR:", err);
 
 
+    if (existingId) {
 
 
 
 
 
-    if (err.code === 11000) {
 
 
+      return res.status(400).json({
 
-      return res.status(409).json({
 
 
 
-        message:
 
 
 
-          "One of the selected passport slots was just booked. Please refresh and choose another slot.",
+        message: `Passport / ID number ${existingId.idNumber} already has a booking.`,
 
 
 
-      });
 
 
 
-    }
 
+      });
 
 
 
 
 
 
-    res.status(500).json({
 
+    }
 
 
-      message: err.message || "Family booking failed",
 
 
 
-    });
 
 
 
-  }
+
+
+
+
+
+
+
+    const requestedSlots = members.map((member) => member.slot);
+
+
+
+
+
+
+
+    const uniqueSlots = new Set(requestedSlots);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    if (uniqueSlots.size !== requestedSlots.length) {
+
+
+
+
+
+
+
+      return res.status(400).json({
+
+
+
+
+
+
+
+        message: "Each family member must select a different time slot",
+
+
+
+
+
+
+
+      });
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // IMPORTANT: only passport bookings block passport slots.
+
+
+
+
+
+
+
+    const alreadyBooked = await Booking.find({
+
+
+
+
+
+
+
+      serviceType: "passport",
+
+
+
+
+
+
+
+      date,
+
+
+
+
+
+
+
+      slot: {
+
+
+
+
+
+
+
+        $in: requestedSlots,
+
+
+
+
+
+
+
+      },
+
+
+
+
+
+
+
+    });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    if (alreadyBooked.length > 0) {
+
+
+
+
+
+
+
+      const unavailable = alreadyBooked.map(
+
+
+
+
+
+
+
+        (booking) => booking.slot
+
+
+
+
+
+
+
+      );
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      return res.status(400).json({
+
+
+
+
+
+
+
+        message: `These slots are already booked: ${unavailable.join(", ")}`,
+
+
+
+
+
+
+
+      });
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    const familyId = `F${Date.now().toString().slice(-8)}`;
+
+
+
+
+
+
+
+    const bookingsToCreate = [];
+
+
+
+
+
+
+
+    const tokens = [];
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    for (let i = 0; i < members.length; i++) {
+
+
+
+
+
+
+
+      const member = members[i];
+
+
+
+
+
+
+
+      const token = `${familyId}-${i + 1}`;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      tokens.push(token);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      bookingsToCreate.push({
+
+
+
+
+
+
+
+        serviceType: "passport",
+
+
+
+
+
+
+
+        title: "Family",
+
+
+
+
+
+
+
+        bookingType: "family",
+
+
+
+
+
+
+
+        familyId,
+
+
+
+
+
+
+
+        familyMemberNumber: i + 1,
+
+
+
+
+
+
+
+        name: member.name.trim(),
+
+
+
+
+
+
+
+        idNumber: member.id.trim(),
+
+
+
+
+
+
+
+        phone: member.phone.trim(),
+
+
+
+
+
+
+
+        address: member.address.trim(),
+
+
+
+
+
+
+
+        purpose: member.purpose,
+
+
+
+
+
+
+
+        email: email.trim().toLowerCase(),
+
+
+
+
+
+
+
+        date,
+
+
+
+
+
+
+
+        slot: member.slot,
+
+
+
+
+
+
+
+        token,
+
+
+
+
+
+
+
+        status: "ongoing",
+
+
+
+
+
+
+
+      });
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    await Booking.insertMany(bookingsToCreate, {
+
+
+
+
+
+
+
+      ordered: true,
+
+
+
+
+
+
+
+    });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    const confirmations = members.map((member, index) => ({
+
+
+
+
+
+
+
+      name: member.name,
+
+
+
+
+
+
+
+      token: tokens[index],
+
+
+
+
+
+
+
+      slot: member.slot,
+
+
+
+
+
+
+
+      purpose: member.purpose,
+
+
+
+
+
+
+
+    }));
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    void sendFamilyAppointmentEmail(email, date, confirmations);
+
+
+
+
+
+
+
+    res.status(201).json({
+
+
+
+
+
+
+
+      message: "Family booking successful",
+
+
+
+
+
+
+
+      familyId,
+
+
+
+
+
+
+
+      tokens,
+
+
+
+
+
+
+
+      confirmations,
+
+
+
+
+
+
+
+    });
+
+
+
+
+
+
+
+  } catch (err) {
+
+
+
+
+
+
+
+    console.log("FAMILY BOOKING ERROR:", err);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    if (err.code === 11000) {
+
+
+
+
+
+
+
+      return res.status(409).json({
+
+
+
+
+
+
+
+        message:
+
+
+
+
+
+
+
+          "One of the selected passport slots was just booked. Please refresh and choose another slot.",
+
+
+
+
+
+
+
+      });
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    res.status(500).json({
+
+
+
+
+
+
+
+      message: err.message || "Family booking failed",
+
+
+
+
+
+
+
+    });
+
+
+
+
+
+
+
+  }
+
+
+
+
 
 
 
@@ -1568,7 +3060,19 @@ router.post("/family-book", async (req, res) => {
 
 
 
+
+
+
+
+
+
+
+
 // =============================================
+
+
+
+
 
 
 
@@ -1576,7 +3080,19 @@ router.post("/family-book", async (req, res) => {
 
 
 
+
+
+
+
 // =============================================
+
+
+
+
+
+
+
+
 
 
 
@@ -1588,147 +3104,129 @@ router.post("/book", async (req, res) => {
 
 
 
-  try {
 
 
 
-    const data = req.body;
 
+  try {
 
 
 
 
 
 
-    if (
 
+    const data = req.body;
 
 
-      !data.name ||
 
 
 
-      !data.idNumber ||
 
 
 
-      !data.email ||
 
 
 
-      !data.phone ||
 
 
 
-      !data.date ||
 
+    if (
 
 
-      !data.slot
 
 
 
-    ) {
 
 
+      !data.name ||
 
-      return res.status(400).json({
 
 
 
-        message: "Please complete all required fields",
 
 
 
-      });
+      !data.idNumber ||
 
 
 
-    }
 
 
 
 
+      !data.email ||
 
 
 
-    const existingIdentity = await findExistingIdentity(
 
 
 
-      data.email,
 
+      !data.phone ||
 
 
-      data.idNumber
 
 
 
-    );
 
 
+      !data.date ||
 
 
 
 
 
-    if (existingIdentity) {
 
 
+      !data.slot
 
-      return res.status(400).json({
 
 
 
-        message: duplicateIdentityMessage(
 
 
 
-          existingIdentity,
+    ) {
 
 
 
-          data.email,
 
 
 
-          data.idNumber
 
+      return res.status(400).json({
 
 
-        ),
 
 
 
-      });
 
 
+        message: "Please complete all required fields",
 
-    }
 
 
 
 
 
 
+      });
 
-    const slotExists = await Booking.findOne({
 
 
 
-      serviceType: "passport",
 
 
 
-      date: data.date,
+    }
 
 
 
-      slot: data.slot,
 
 
 
-    });
 
 
 
@@ -1736,23 +3234,23 @@ router.post("/book", async (req, res) => {
 
 
 
-    if (slotExists) {
 
 
+    const existingIdentity = await findExistingIdentity(
 
-      return res.status(400).json({
+      data.email,
 
+      data.idNumber,
 
+      "passport"
 
-        message: "Passport slot already booked",
+    );
 
 
 
-      });
 
 
 
-    }
 
 
 
@@ -1760,145 +3258,126 @@ router.post("/book", async (req, res) => {
 
 
 
-    const token = makeToken("P");
 
 
+    if (existingIdentity) {
 
 
 
 
 
-    const booking = await Booking.create({
 
 
+      return res.status(400).json({
 
-      serviceType: "passport",
 
 
 
-      title: data.title || "Mr",
 
 
 
-      bookingType: "individual",
+        message: duplicateIdentityMessage(
 
 
 
-      familyId: null,
 
 
 
-      familyMemberNumber: null,
 
+          existingIdentity,
 
 
-      name: data.name.trim(),
 
 
 
-      idNumber: data.idNumber.trim(),
 
 
+          data.email,
 
-      email: data.email.trim().toLowerCase(),
 
 
 
-      phone: data.phone.trim(),
 
 
 
-      address: data.address ? data.address.trim() : "",
+          data.idNumber
 
 
 
-      purpose: data.purpose || "New Passport",
 
 
 
-      date: data.date,
 
+        ),
 
 
-      slot: data.slot,
 
 
 
-      token,
 
 
+      });
 
-      status: "ongoing",
 
 
 
-    });
 
 
 
+    }
 
 
 
 
-    void sendAppointmentEmail(booking);
 
 
 
-    res.status(201).json({
 
 
 
-      message: "Booking success",
 
 
 
-      token: booking.token,
 
 
+    const slotExists = await Booking.findOne({
 
-      booking,
 
-     
 
 
 
-    });
 
 
+      serviceType: "passport",
 
-  } catch (err) {
 
 
 
-    console.log("INDIVIDUAL BOOKING ERROR:", err);
 
 
 
+      date: data.date,
 
 
 
 
-    if (err.code === 11000) {
 
 
 
-      return res.status(409).json({
+      slot: data.slot,
 
 
 
-        message:
 
 
 
-          "This passport slot was just booked. Please select another slot.",
 
+    });
 
 
-      });
 
 
 
-    }
 
 
 
@@ -1906,19 +3385,384 @@ router.post("/book", async (req, res) => {
 
 
 
-    res.status(500).json({
 
 
 
-      message: err.message || "Server error",
+    if (slotExists) {
 
 
 
-    });
 
 
 
-  }
+
+      return res.status(400).json({
+
+
+
+
+
+
+
+        message: "Passport slot already booked",
+
+
+
+
+
+
+
+      });
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    const token = makeToken("P");
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    const booking = await Booking.create({
+
+
+
+
+
+
+
+      serviceType: "passport",
+
+
+
+
+
+
+
+      title: data.title || "Mr",
+
+
+
+
+
+
+
+      bookingType: "individual",
+
+
+
+
+
+
+
+      familyId: null,
+
+
+
+
+
+
+
+      familyMemberNumber: null,
+
+
+
+
+
+
+
+      name: data.name.trim(),
+
+
+
+
+
+
+
+      idNumber: data.idNumber.trim(),
+
+
+
+
+
+
+
+      email: data.email.trim().toLowerCase(),
+
+
+
+
+
+
+
+      phone: data.phone.trim(),
+
+
+
+
+
+
+
+      address: data.address ? data.address.trim() : "",
+
+
+
+
+
+
+
+      purpose: data.purpose || "New Passport",
+
+
+
+
+
+
+
+      date: data.date,
+
+
+
+
+
+
+
+      slot: data.slot,
+
+
+
+
+
+
+
+      token,
+
+
+
+
+
+
+
+      status: "ongoing",
+
+
+
+
+
+
+
+    });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    const emailSent = await sendAppointmentEmail({
+      ...booking.toObject(),
+      name: String(data.name).trim(),
+      email: String(data.email).trim().toLowerCase(),
+      date: data.date,
+      slot: data.slot,
+    });
+
+
+
+
+
+
+
+    res.status(201).json({
+
+
+
+
+
+
+
+      message: "Booking success",
+
+
+
+
+
+
+
+      token: booking.token,
+
+
+
+
+
+
+
+      booking,
+
+
+
+      emailSent,
+
+
+
+
+
+
+
+    });
+
+
+
+
+
+
+
+  } catch (err) {
+
+
+
+
+
+
+
+    console.log("INDIVIDUAL BOOKING ERROR:", err);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    if (err.code === 11000) {
+
+
+
+
+
+
+
+      return res.status(409).json({
+
+
+
+
+
+
+
+        message:
+
+
+
+
+
+
+
+          "This passport slot was just booked. Please select another slot.",
+
+
+
+
+
+
+
+      });
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    res.status(500).json({
+
+
+
+
+
+
+
+      message: err.message || "Server error",
+
+
+
+
+
+
+
+    });
+
+
+
+
+
+
+
+  }
+
+
+
+
 
 
 
@@ -1930,7 +3774,19 @@ router.post("/book", async (req, res) => {
 
 
 
+
+
+
+
+
+
+
+
 // =============================================
+
+
+
+
 
 
 
@@ -1938,11 +3794,27 @@ router.post("/book", async (req, res) => {
 
 
 
+
+
+
+
 // 15-minute frontend slots, 9:00 AM - 1:00 PM
 
 
 
+
+
+
+
 // =============================================
+
+
+
+
+
+
+
+
 
 
 
@@ -1954,147 +3826,129 @@ router.post("/birth-certificate-book", async (req, res) => {
 
 
 
-  try {
 
 
 
-    const data = req.body;
 
+  try {
 
 
 
 
 
 
-    if (
 
+    const data = req.body;
 
 
-      !data.name ||
 
 
 
-      !data.idNumber ||
 
 
 
-      !data.email ||
 
 
 
-      !data.phone ||
 
 
 
-      !data.date ||
 
+    if (
 
 
-      !data.slot
 
 
 
-    ) {
 
 
+      !data.name ||
 
-      return res.status(400).json({
 
 
 
-        message: "Please complete all required fields",
 
 
 
-      });
+      !data.idNumber ||
 
 
 
-    }
 
 
 
 
+      !data.email ||
 
 
 
-    const existingIdentity = await findExistingIdentity(
 
 
 
-      data.email,
 
+      !data.phone ||
 
 
-      data.idNumber
 
 
 
-    );
 
 
+      !data.date ||
 
 
 
 
 
-    if (existingIdentity) {
 
 
+      !data.slot
 
-      return res.status(400).json({
 
 
 
-        message: duplicateIdentityMessage(
 
 
 
-          existingIdentity,
+    ) {
 
 
 
-          data.email,
 
 
 
-          data.idNumber
 
+      return res.status(400).json({
 
 
-        ),
 
 
 
-      });
 
 
+        message: "Please complete all required fields",
 
-    }
 
 
 
 
 
 
+      });
 
-    const slotExists = await Booking.findOne({
 
 
 
-      serviceType: "birth_certificate",
 
 
 
-      date: data.date,
+    }
 
 
 
-      slot: data.slot,
 
 
 
-    });
 
 
 
@@ -2102,23 +3956,23 @@ router.post("/birth-certificate-book", async (req, res) => {
 
 
 
-    if (slotExists) {
 
 
+    const existingIdentity = await findExistingIdentity(
 
-      return res.status(400).json({
+      data.email,
 
+      data.idNumber,
 
+      "birth_certificate"
 
-        message: "Birth certificate slot already booked",
+    );
 
 
 
-      });
 
 
 
-    }
 
 
 
@@ -2126,157 +3980,495 @@ router.post("/birth-certificate-book", async (req, res) => {
 
 
 
-    const token = makeToken("BC");
 
 
+    if (existingIdentity) {
 
 
 
 
 
-    const booking = await Booking.create({
 
 
+      return res.status(400).json({
 
-      serviceType: "birth_certificate",
 
 
 
-      title: data.title || "",
 
 
 
-      bookingType: "service",
+        message: duplicateIdentityMessage(
 
 
 
-      name: data.name.trim(),
 
 
 
-      idNumber: data.idNumber.trim(),
 
+          existingIdentity,
 
 
-      email: data.email.trim().toLowerCase(),
 
 
 
-      phone: data.phone.trim(),
 
 
+          data.email,
 
-      address: data.address ? data.address.trim() : "",
 
 
 
-      purpose: data.purpose || "Birth Certificate",
 
 
 
-      date: data.date,
+          data.idNumber
 
 
 
-      slot: data.slot,
 
 
 
-      token,
 
+        ),
 
 
-      status: "ongoing",
 
 
 
-    });
 
 
+      });
 
 
 
 
 
-    void sendAppointmentEmail(booking);
 
 
+    }
 
-    res.status(201).json({
 
 
 
-      message: "Birth certificate appointment booked",
 
 
 
-      token: booking.token,
 
 
 
-      booking,
 
-      emailSent,
 
 
 
-    });
 
+    const slotExists = await Booking.findOne({
 
 
-  } catch (err) {
 
 
 
-    console.log("BIRTH CERTIFICATE BOOKING ERROR:", err);
 
 
+      serviceType: "birth_certificate",
 
 
 
 
 
-    if (err.code === 11000) {
 
 
+      date: data.date,
 
-      return res.status(409).json({
 
 
 
-        message:
 
 
 
-          "This birth certificate slot was just booked. Please select another slot.",
+      slot: data.slot,
 
 
 
-      });
 
 
 
-    }
 
+    });
 
 
 
 
 
 
-    res.status(500).json({
 
 
 
-      message: err.message || "Birth certificate booking failed",
 
 
 
-    });
 
 
 
-  }
+    if (slotExists) {
+
+
+
+
+
+
+
+      return res.status(400).json({
+
+
+
+
+
+
+
+        message: "Birth certificate slot already booked",
+
+
+
+
+
+
+
+      });
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    const token = makeToken("BC");
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    const booking = await Booking.create({
+
+
+
+
+
+
+
+      serviceType: "birth_certificate",
+
+
+
+
+
+
+
+      title: data.title || "",
+
+
+
+
+
+
+
+      bookingType: "service",
+
+
+
+
+
+
+
+      name: data.name.trim(),
+
+
+
+
+
+
+
+      idNumber: data.idNumber.trim(),
+
+
+
+
+
+
+
+      email: data.email.trim().toLowerCase(),
+
+
+
+
+
+
+
+      phone: data.phone.trim(),
+
+
+
+
+
+
+
+      address: data.address ? data.address.trim() : "",
+
+
+
+
+
+
+
+      purpose: data.purpose || "Birth Certificate",
+
+
+
+
+
+
+
+      date: data.date,
+
+
+
+
+
+
+
+      slot: data.slot,
+
+
+
+
+
+
+
+      token,
+
+
+
+
+
+
+
+      status: "ongoing",
+
+
+
+
+
+
+
+    });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    const emailSent = await sendAppointmentEmail({
+      ...booking.toObject(),
+      name: String(data.name).trim(),
+      email: String(data.email).trim().toLowerCase(),
+      date: data.date,
+      slot: data.slot,
+    });
+
+
+
+
+
+
+
+    res.status(201).json({
+
+
+
+
+
+
+
+      message: "Birth certificate appointment booked",
+
+
+
+
+
+
+
+      token: booking.token,
+
+
+
+
+
+
+
+      booking,
+
+
+
+      emailSent,
+
+
+
+
+
+
+
+    });
+
+
+
+
+
+
+
+  } catch (err) {
+
+
+
+
+
+
+
+    console.log("BIRTH CERTIFICATE BOOKING ERROR:", err);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    if (err.code === 11000) {
+
+
+
+
+
+
+
+      return res.status(409).json({
+
+
+
+
+
+
+
+        message:
+
+
+
+
+
+
+
+          "This birth certificate slot was just booked. Please select another slot.",
+
+
+
+
+
+
+
+      });
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    res.status(500).json({
+
+
+
+
+
+
+
+      message: err.message || "Birth certificate booking failed",
+
+
+
+
+
+
+
+    });
+
+
+
+
+
+
+
+  }
+
+
+
+
 
 
 
@@ -2288,7 +4480,19 @@ router.post("/birth-certificate-book", async (req, res) => {
 
 
 
+
+
+
+
+
+
+
+
 // =============================================
+
+
+
+
 
 
 
@@ -2296,11 +4500,27 @@ router.post("/birth-certificate-book", async (req, res) => {
 
 
 
+
+
+
+
 // 30-minute frontend slots, 9:00 AM - 1:00 PM
 
 
 
+
+
+
+
 // =============================================
+
+
+
+
+
+
+
+
 
 
 
@@ -2312,151 +4532,133 @@ router.post("/other-service-book", async (req, res) => {
 
 
 
-  try {
 
 
 
-    const data = req.body;
 
+  try {
 
 
 
 
 
 
-    if (
 
+    const data = req.body;
 
 
-      !data.name ||
 
 
 
-      !data.idNumber ||
 
 
 
-      !data.email ||
 
 
 
-      !data.phone ||
 
 
 
-      !data.date ||
 
+    if (
 
 
-      !data.slot ||
 
 
 
-      !data.purpose
 
 
+      !data.name ||
 
-    ) {
 
 
 
-      return res.status(400).json({
 
 
 
-        message: "Please complete all required fields",
+      !data.idNumber ||
 
 
 
-      });
 
 
 
-    }
 
+      !data.email ||
 
 
 
 
 
 
-    const existingIdentity = await findExistingIdentity(
 
+      !data.phone ||
 
 
-      data.email,
 
 
 
-      data.idNumber
 
 
+      !data.date ||
 
-    );
 
 
 
 
 
 
+      !data.slot ||
 
-    if (existingIdentity) {
 
 
 
-      return res.status(400).json({
 
 
 
-        message: duplicateIdentityMessage(
+      !data.purpose
 
 
 
-          existingIdentity,
 
 
 
-          data.email,
 
+    ) {
 
 
-          data.idNumber
 
 
 
-        ),
 
 
+      return res.status(400).json({
 
-      });
 
 
 
-    }
 
 
 
+        message: "Please complete all required fields",
 
 
 
 
-    const slotExists = await Booking.findOne({
 
 
 
-      serviceType: "other",
+      });
 
 
 
-      date: data.date,
 
 
 
-      slot: data.slot,
 
+    }
 
 
-    });
 
 
 
@@ -2464,23 +4666,23 @@ router.post("/other-service-book", async (req, res) => {
 
 
 
-    if (slotExists) {
 
 
 
-      return res.status(400).json({
 
 
 
-        message: "Other service slot already booked",
+    const existingIdentity = await findExistingIdentity(
 
+      data.email,
 
+      data.idNumber,
 
-      });
+      "other"
 
+    );
 
 
-    }
 
 
 
@@ -2488,161 +4690,511 @@ router.post("/other-service-book", async (req, res) => {
 
 
 
-    const token = makeToken("OS");
 
 
 
 
 
 
+    if (existingIdentity) {
 
-    const booking = await Booking.create({
 
 
 
-      serviceType: "other",
 
 
 
-      title: data.title || "",
+      return res.status(400).json({
 
 
 
-      bookingType: "service",
 
 
 
-      name: data.name.trim(),
 
+        message: duplicateIdentityMessage(
 
 
-      idNumber: data.idNumber.trim(),
 
 
 
-      email: data.email.trim().toLowerCase(),
 
 
+          existingIdentity,
 
-      phone: data.phone.trim(),
 
 
 
-      address: data.address ? data.address.trim() : "",
 
 
 
-      purpose: data.purpose.trim(),
+          data.email,
 
 
 
-      date: data.date,
 
 
 
-      slot: data.slot,
 
+          data.idNumber
 
 
-      token,
 
 
 
-      status: "ongoing",
 
 
+        ),
 
-    });
 
 
 
 
 
 
+      });
 
-    void sendAppointmentEmail(booking);
 
 
 
-    res.status(201).json({
 
 
 
-      message: "Other consular service appointment booked",
+    }
 
 
 
-      token: booking.token,
 
 
 
-      booking,
 
-      emailSent,
 
 
 
-    });
 
 
 
-  } catch (err) {
 
 
+    const slotExists = await Booking.findOne({
 
-    console.log("OTHER SERVICE BOOKING ERROR:", err);
 
 
 
 
 
 
+      serviceType: "other",
 
-    if (err.code === 11000) {
 
 
 
-      return res.status(409).json({
 
 
 
-        message:
+      date: data.date,
 
 
 
-          "This other-service slot was just booked. Please select another slot.",
 
 
 
-      });
 
+      slot: data.slot,
 
 
-    }
 
 
 
 
 
+    });
 
 
-    res.status(500).json({
 
 
 
-      message: err.message || "Other service booking failed",
 
 
 
-    });
 
 
 
-  }
+
+
+
+
+    if (slotExists) {
+
+
+
+
+
+
+
+      return res.status(400).json({
+
+
+
+
+
+
+
+        message: "Other service slot already booked",
+
+
+
+
+
+
+
+      });
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    const token = makeToken("OS");
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    const booking = await Booking.create({
+
+
+
+
+
+
+
+      serviceType: "other",
+
+
+
+
+
+
+
+      title: data.title || "",
+
+
+
+
+
+
+
+      bookingType: "service",
+
+
+
+
+
+
+
+      name: data.name.trim(),
+
+
+
+
+
+
+
+      idNumber: data.idNumber.trim(),
+
+
+
+
+
+
+
+      email: data.email.trim().toLowerCase(),
+
+
+
+
+
+
+
+      phone: data.phone.trim(),
+
+
+
+
+
+
+
+      address: data.address ? data.address.trim() : "",
+
+
+
+
+
+
+
+      purpose: data.purpose.trim(),
+
+
+
+
+
+
+
+      date: data.date,
+
+
+
+
+
+
+
+      slot: data.slot,
+
+
+
+
+
+
+
+      token,
+
+
+
+
+
+
+
+      status: "ongoing",
+
+
+
+
+
+
+
+    });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    const emailSent = await sendAppointmentEmail({
+      ...booking.toObject(),
+      name: String(data.name).trim(),
+      email: String(data.email).trim().toLowerCase(),
+      date: data.date,
+      slot: data.slot,
+    });
+
+
+
+
+
+
+
+    res.status(201).json({
+
+
+
+
+
+
+
+      message: "Other consular service appointment booked",
+
+
+
+
+
+
+
+      token: booking.token,
+
+
+
+
+
+
+
+      booking,
+
+
+
+      emailSent,
+
+
+
+
+
+
+
+    });
+
+
+
+
+
+
+
+  } catch (err) {
+
+
+
+
+
+
+
+    console.log("OTHER SERVICE BOOKING ERROR:", err);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    if (err.code === 11000) {
+
+
+
+
+
+
+
+      return res.status(409).json({
+
+
+
+
+
+
+
+        message:
+
+
+
+
+
+
+
+          "This other-service slot was just booked. Please select another slot.",
+
+
+
+
+
+
+
+      });
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    res.status(500).json({
+
+
+
+
+
+
+
+      message: err.message || "Other service booking failed",
+
+
+
+
+
+
+
+    });
+
+
+
+
+
+
+
+  }
+
+
+
+
 
 
 
 });
+
+
+
+
+
+
+
+
 
 
 
