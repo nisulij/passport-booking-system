@@ -1,16 +1,27 @@
 const express = require("express");
 const router = express.Router();
 const Booking = require("../models/Booking");
-const { Resend } = require("resend");
+const nodemailer = require("nodemailer");
 // -------------------------------------------------
 // EMAIL CONFIRMATIONS
 // -------------------------------------------------
-const resend = new Resend(process.env.RESEND_API_KEY);
+
+const transporter = nodemailer.createTransport({
+  host: process.env.MAIL_HOST,
+  port: Number(process.env.MAIL_PORT || 587),
+  secure: Number(process.env.MAIL_PORT || 587) === 465,
+  auth: {
+    user: process.env.MAIL_USERNAME,
+    pass: process.env.MAIL_PASSWORD,
+  },
+});
+
 function serviceLabel(serviceType) {
   if (serviceType === "passport") return "Passport";
   if (serviceType === "birth_certificate") return "Birth Certificate";
   return "Consular Service";
 }
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -19,31 +30,43 @@ function escapeHtml(value) {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
+
+function mailFrom() {
+  return process.env.MAIL_FROM_ADDRESS || process.env.MAIL_USERNAME;
+}
+
+function mailFromName() {
+  return process.env.MAIL_FROM_NAME || process.env.APP_NAME || "Passport & Consular Booking";
+}
+
 async function sendAppointmentEmail(booking) {
   try {
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-      console.error("EMAIL ERROR: EMAIL_USER or EMAIL_PASS is missing in environment variables.");
+    if (!process.env.MAIL_HOST || !process.env.MAIL_USERNAME || !process.env.MAIL_PASSWORD) {
+      console.error("EMAIL ERROR: MAIL_HOST, MAIL_USERNAME or MAIL_PASSWORD is missing.");
       return false;
     }
+
     if (!booking?.email) {
       console.error("EMAIL ERROR: Booking has no email address.");
       return false;
     }
+
     const service = serviceLabel(booking.serviceType);
     const to = String(booking.email).trim().toLowerCase();
-   const { data: info, error } = await resend.emails.send({
-    
-      from: "Passport & Consular Booking <onboarding@resend.dev>",
+
+    const info = await transporter.sendMail({
+      from: `"${mailFromName()}" <${mailFrom()}>`,
       to,
       subject: `Appointment Confirmed - ${service} - ${booking.token}`,
-      text:
-`Your ${service} appointment has been confirmed.
+      text: `Your ${service} appointment has been confirmed.
+
 Name: ${booking.name}
 Service: ${service}
 Date: ${booking.date}
 Time: ${booking.slot}
 Appointment Token: ${booking.token}
 ID / Passport Number: ${booking.idNumber}
+
 Please bring your required documents and arrive on time.
 This is an automated confirmation email.`,
       html: `
@@ -63,31 +86,29 @@ This is an automated confirmation email.`,
         </div>
       `,
     });
-    if (error) {
-  console.error("RESEND EMAIL ERROR:", error);
-  return false;
-}
 
-console.log("EMAIL SENT SUCCESSFULLY:", info?.id);
-return true;
-    console.log(`EMAIL SENT: ${info.messageId} -> ${to}`);
+    console.log("EMAIL SENT SUCCESSFULLY:", info.messageId, "->", to);
     return true;
   } catch (err) {
     console.error("EMAIL SEND ERROR:", err);
     return false;
   }
 }
+
 async function sendFamilyAppointmentEmail(email, date, confirmations) {
   try {
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-      console.error("EMAIL ERROR: EMAIL_USER or EMAIL_PASS is missing in environment variables.");
-      return false;
-    }
     const to = String(email || "").trim().toLowerCase();
+
     if (!to) {
       console.error("EMAIL ERROR: Family booking has no email address.");
       return false;
     }
+
+    if (!process.env.MAIL_HOST || !process.env.MAIL_USERNAME || !process.env.MAIL_PASSWORD) {
+      console.error("EMAIL ERROR: MAIL_HOST, MAIL_USERNAME or MAIL_PASSWORD is missing.");
+      return false;
+    }
+
     const rows = confirmations.map((item) => `
       <tr>
         <td style="padding:8px;border:1px solid #ddd">${escapeHtml(item.name)}</td>
@@ -95,62 +116,87 @@ async function sendFamilyAppointmentEmail(email, date, confirmations) {
         <td style="padding:8px;border:1px solid #ddd"><strong>${escapeHtml(item.token)}</strong></td>
       </tr>
     `).join("");
+
     const info = await transporter.sendMail({
-      from: `"Passport & Consular Booking" <${process.env.EMAIL_USER}>`,
+      from: `"${mailFromName()}" <${mailFrom()}>`,
       to,
       subject: `Family Passport Appointments Confirmed - ${date}`,
-      text: `Your family passport appointments have been confirmed for ${date}.\n\n${confirmations.map((x) => `${x.name} - ${x.slot} - ${x.token}`).join("\n")}\n\nPlease bring the required documents and arrive on time.`,
+      text: `Your family passport appointments have been confirmed for ${date}.
+
+${confirmations.map((x) => `${x.name} - ${x.slot} - ${x.token}`).join("\n")}
+
+Please bring the required documents and arrive on time.`,
       html: `
         <div style="font-family:Arial,sans-serif;max-width:700px;margin:auto;padding:24px;color:#222">
           <h2>Family Passport Appointments Confirmed</h2>
           <p>Date: <strong>${escapeHtml(date)}</strong></p>
           <table style="border-collapse:collapse;width:100%;margin-top:20px">
-            <thead><tr><th style="padding:8px;border:1px solid #ddd;text-align:left">Member</th><th style="padding:8px;border:1px solid #ddd;text-align:left">Time</th><th style="padding:8px;border:1px solid #ddd;text-align:left">Token</th></tr></thead>
+            <thead>
+              <tr>
+                <th style="padding:8px;border:1px solid #ddd;text-align:left">Member</th>
+                <th style="padding:8px;border:1px solid #ddd;text-align:left">Time</th>
+                <th style="padding:8px;border:1px solid #ddd;text-align:left">Token</th>
+              </tr>
+            </thead>
             <tbody>${rows}</tbody>
           </table>
           <p style="margin-top:20px">Please bring the required documents and arrive on time.</p>
+          <p style="font-size:12px;color:#777">This is an automated confirmation email.</p>
         </div>
       `,
     });
-    console.log(`FAMILY EMAIL SENT: ${info.messageId} -> ${to}`);
+
+    console.log("FAMILY EMAIL SENT SUCCESSFULLY:", info.messageId, "->", to);
     return true;
   } catch (err) {
     console.error("FAMILY EMAIL SEND ERROR:", err);
     return false;
   }
 }
+
 const SERVICES = ["passport", "birth_certificate", "other"];
+
 function cleanServiceType(value) {
   return SERVICES.includes(value) ? value : null;
 }
+
 function makeToken(prefix) {
   return `${prefix}-${Date.now().toString().slice(-8)}-${Math.floor(
     100 + Math.random() * 900
   )}`;
 }
+
 async function findExistingIdentity(email, idNumber, serviceType) {
   const cleanEmail = String(email || "").trim().toLowerCase();
   const cleanId = String(idNumber || "").trim();
+
   const conditions = [];
   if (cleanEmail) conditions.push({ email: cleanEmail });
   if (cleanId) conditions.push({ idNumber: cleanId });
+
   if (!conditions.length) return null;
+
   return Booking.findOne({
     serviceType,
     $or: conditions,
   });
 }
+
 function duplicateIdentityMessage(existing, email, idNumber) {
   const cleanEmail = String(email || "").trim().toLowerCase();
   const cleanId = String(idNumber || "").trim();
+
   if (existing?.email === cleanEmail && existing?.idNumber === cleanId) {
     return "This email and passport / ID number already have a booking.";
   }
+
   if (existing?.email === cleanEmail) {
     return "This email address already has a booking.";
   }
+
   return "This passport / ID number already has a booking.";
 }
+
 // =============================================
 // GET BOOKED SLOTS FOR A SPECIFIC SERVICE + DATE
 // =============================================

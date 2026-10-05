@@ -18,6 +18,327 @@ const ALL_SLOTS = generateSlots();
 const TODAY = new Date().toISOString().split("T")[0];
 const API_BASE = (import.meta.env.VITE_API_URL || "https://passport-booking-app.onrender.com/api").replace(/\/$/, "");
 
+const HOLIDAYS = {
+  "2026-11-11": "Embassy Holiday",
+  "2026-12-25": "Christmas Day",
+};
+
+function isClosedDate(dateStr) {
+  if (!dateStr) return false;
+  if (HOLIDAYS[dateStr]) return true;
+
+  const d = new Date(`${dateStr}T00:00:00`);
+  const day = d.getDay();
+  return day === 0 || day === 6;
+}
+
+function formatCalendarDate(date) {
+  // Use the browser's local calendar date.
+  // Do not use toISOString() here because timezone conversion can move
+  // a calendar day backward/forward (e.g. Nov 11 -> Nov 12).
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+    2,
+    "0"
+  )}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function dateFromString(dateStr) {
+  return new Date(`${dateStr}T00:00:00`);
+}
+
+function addDays(dateStr, amount) {
+  const d = dateFromString(dateStr);
+  d.setDate(d.getDate() + amount);
+  return formatCalendarDate(d);
+}
+
+function monthKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function monthLabel(date) {
+  return date.toLocaleDateString("en-GB", {
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function getCalendarDays(monthDate) {
+  const first = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+  const startOffset = (first.getDay() + 6) % 7; // Monday = 0
+  const daysInMonth = new Date(
+    monthDate.getFullYear(),
+    monthDate.getMonth() + 1,
+    0
+  ).getDate();
+
+  const days = [];
+
+  for (let i = 0; i < startOffset; i++) days.push(null);
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    days.push(new Date(monthDate.getFullYear(), monthDate.getMonth(), day));
+  }
+
+  while (days.length % 7 !== 0) days.push(null);
+
+  return days;
+}
+
+// Fetch one day's booked slots. The booking page uses the same public
+// availability endpoint that is already used for the selected date.
+async function getAvailableSlotsForDate(dateStr) {
+  if (isClosedDate(dateStr)) return [];
+
+  const [publicResponse, adminResponse] = await Promise.all([
+    fetch(`${API_BASE}/slots/passport/${encodeURIComponent(dateStr)}`),
+    fetch(`${API_BASE}/admin/appointments/passport`),
+  ]);
+
+  if (!publicResponse.ok) {
+    throw new Error(`Slot request failed (${publicResponse.status})`);
+  }
+
+  const publicData = await publicResponse.json();
+  const adminData = adminResponse.ok ? await adminResponse.json() : [];
+
+  const dateRows = (Array.isArray(adminData) ? adminData : []).filter(
+    (row) =>
+      String(row?.appointmentDate ?? row?.date ?? "").slice(0, 10) === dateStr
+  );
+
+  const booked = normalizeBookedSlots([
+    ...(Array.isArray(publicData) ? publicData : []),
+    ...dateRows,
+  ]);
+
+  return ALL_SLOTS.filter(
+    (slot) =>
+      !booked.some(
+        (bookedSlot) =>
+          normalizeStartTime(bookedSlot) === normalizeStartTime(slot)
+      )
+  );
+}
+
+// When a selected weekday is completely booked, keep moving forward until
+// the first real appointment date is found. Weekends and holidays are skipped.
+async function findNextAvailableDate(startDate) {
+  let candidate = startDate;
+
+  for (let i = 0; i < 370; i++) {
+    if (!isClosedDate(candidate)) {
+      const availableSlots = await getAvailableSlotsForDate(candidate);
+
+      if (availableSlots.length > 0) {
+        return {
+          date: candidate,
+          availableSlots,
+          moved: candidate !== startDate,
+        };
+      }
+    }
+
+    candidate = addDays(candidate, 1);
+  }
+
+  return null;
+}
+
+function AppointmentCalendar({ value, minDate, onChange, loading }) {
+  const initialDate = value
+    ? dateFromString(value)
+    : dateFromString(minDate);
+
+  const [viewDate, setViewDate] = useState(
+    new Date(initialDate.getFullYear(), initialDate.getMonth(), 1)
+  );
+  const [checkingDate, setCheckingDate] = useState(false);
+  const [notice, setNotice] = useState("");
+
+  useEffect(() => {
+    if (!value) return;
+    const d = dateFromString(value);
+    setViewDate(new Date(d.getFullYear(), d.getMonth(), 1));
+  }, [value]);
+
+  const days = getCalendarDays(viewDate);
+
+  const goPreviousMonth = () => {
+    const previous = new Date(
+      viewDate.getFullYear(),
+      viewDate.getMonth() - 1,
+      1
+    );
+
+    const minimumMonth = new Date(
+      dateFromString(minDate).getFullYear(),
+      dateFromString(minDate).getMonth(),
+      1
+    );
+
+    if (previous >= minimumMonth) setViewDate(previous);
+  };
+
+  const goNextMonth = () => {
+    setViewDate(
+      new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1)
+    );
+  };
+
+  const handleDateClick = async (date) => {
+    if (!date || checkingDate || loading) return;
+
+    const selectedDate = formatCalendarDate(date);
+
+    if (selectedDate < minDate || isClosedDate(selectedDate)) return;
+
+    setCheckingDate(true);
+    setNotice("");
+
+    try {
+      const result = await findNextAvailableDate(selectedDate);
+
+      if (!result) {
+        setNotice("No available appointment dates were found.");
+        return;
+      }
+
+      onChange(result.date, result.availableSlots);
+
+      if (result.moved) {
+        setNotice(
+          `No appointments were available on ${date.toLocaleDateString(
+            "en-GB",
+            { day: "numeric", month: "long", year: "numeric" }
+          )}. The next available date is ${dateFromString(
+            result.date
+          ).toLocaleDateString("en-GB", {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          })}.`
+        );
+      }
+    } catch (error) {
+      console.error("DATE AVAILABILITY ERROR:", error);
+      setNotice(
+        "We couldn't check availability right now. Please try again."
+      );
+    } finally {
+      setCheckingDate(false);
+    }
+  };
+
+  return (
+    <div style={styles.calendarWrap}>
+      <div style={styles.calendarHeader}>
+        <button
+          type="button"
+          onClick={goPreviousMonth}
+          disabled={
+            viewDate <=
+            new Date(
+              dateFromString(minDate).getFullYear(),
+              dateFromString(minDate).getMonth(),
+              1
+            )
+          }
+          style={styles.calendarNav}
+          aria-label="Previous month"
+        >
+          ‹
+        </button>
+
+        <div style={styles.calendarMonth}>{monthLabel(viewDate)}</div>
+
+        <button
+          type="button"
+          onClick={goNextMonth}
+          style={styles.calendarNav}
+          aria-label="Next month"
+        >
+          ›
+        </button>
+      </div>
+
+      <div style={styles.calendarWeekdays}>
+        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
+          <div key={day} style={styles.calendarWeekday}>
+            {day}
+          </div>
+        ))}
+      </div>
+
+      <div style={styles.calendarGrid}>
+        {days.map((date, index) => {
+          if (!date) {
+            return <div key={`empty-${index}`} />;
+          }
+
+          const dateStr = formatCalendarDate(date);
+          const closed = isClosedDate(dateStr);
+          const past = dateStr < minDate;
+          const selected = dateStr === value;
+          const holiday = Boolean(HOLIDAYS[dateStr]);
+          const disabled = closed || past || checkingDate || loading;
+
+          return (
+            <button
+              type="button"
+              key={dateStr}
+              disabled={disabled}
+              onClick={() => handleDateClick(date)}
+              title={
+                holiday
+                  ? HOLIDAYS[dateStr]
+                  : closed
+                  ? "Embassy closed"
+                  : past
+                  ? "Past date"
+                  : "Check appointment availability"
+              }
+              style={{
+                ...styles.calendarDay,
+                ...(closed || past ? styles.calendarDayClosed : {}),
+                ...(holiday ? styles.calendarHoliday : {}),
+                ...(selected ? styles.calendarDaySelected : {}),
+              }}
+            >
+              <span>{date.getDate()}</span>
+              {holiday && <small>Closed</small>}
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={styles.calendarLegend}>
+        <div style={styles.calendarLegendItem}>
+          <span style={{ ...styles.calendarLegendDot, background: "#dc2626" }} />
+          <span>Closed</span>
+        </div>
+        <div style={styles.calendarLegendItem}>
+          <span style={{ ...styles.calendarLegendDot, background: "#1e3a5f" }} />
+          <span>Selected</span>
+        </div>
+      </div>
+
+      {checkingDate && (
+        <div style={styles.calendarChecking}>
+          Checking the next available appointment…
+        </div>
+      )}
+
+      {notice && (
+        <div style={styles.calendarNotice}>
+          {notice}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 function normalizeStartTime(value) {
   let raw = String(value ?? "").trim();
   if (!raw) return "";
@@ -231,8 +552,10 @@ export default function PassportBooking() {
 
   useEffect(() => {
     if (!form.date) return;
+
     setLoadingSlots(true);
     setSelectedSlot("");
+
     Promise.all([
       fetch(`${API_BASE}/slots/passport/${encodeURIComponent(form.date)}`).then(async (r) => {
         if (!r.ok) throw new Error(`Slot request failed (${r.status})`);
@@ -248,6 +571,7 @@ export default function PassportBooking() {
           (row) =>
             String(row?.appointmentDate ?? row?.date ?? "").slice(0, 10) === form.date
         );
+
         setBookedSlots(
           normalizeBookedSlots([
             ...(Array.isArray(publicData) ? publicData : []),
@@ -689,13 +1013,30 @@ const handleSubmit = async () => {
 
                   <div style={styles.field}>
                     <label style={styles.label}>Appointment Date</label>
-                    <input
-                      type="date"
-                      style={{ ...styles.input, ...(errors.date ? styles.inputErr : {}) }}
-                      min={TODAY}
+
+                    <AppointmentCalendar
                       value={form.date}
-                      onChange={e => handleChange("date", e.target.value)}
+                      minDate={TODAY}
+                      loading={loadingSlots}
+                      onChange={(date, availableSlots) => {
+                        handleChange("date", date);
+                        setBookedSlots(
+                          ALL_SLOTS.filter(
+                            (slot) =>
+                              !availableSlots.some(
+                                (availableSlot) =>
+                                  normalizeStartTime(availableSlot) ===
+                                  normalizeStartTime(slot)
+                              )
+                          )
+                        );
+                        setSelectedSlot("");
+                        if (errors.date) {
+                          setErrors((prev) => ({ ...prev, date: undefined }));
+                        }
+                      }}
                     />
+
                     {errors.date && <span style={styles.errMsg}>{errors.date}</span>}
                   </div>
 
@@ -947,6 +1288,121 @@ const styles = {
     textDecoration: "line-through",
   },
   pillSelected: { background: "#1e3a5f", color: "#fff", borderColor: "#1e3a5f" },
+
+  calendarWrap: {
+    border: "1px solid #e2e8f0",
+    borderRadius: 12,
+    padding: 14,
+    background: "#fff",
+  },
+  calendarHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  calendarMonth: {
+    fontFamily: "'DM Serif Display', serif",
+    fontSize: 18,
+    color: "#1e293b",
+  },
+  calendarNav: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    border: "1px solid #e2e8f0",
+    background: "#fff",
+    color: "#1e3a5f",
+    fontSize: 22,
+    lineHeight: 1,
+    cursor: "pointer",
+  },
+  calendarWeekdays: {
+    display: "grid",
+    gridTemplateColumns: "repeat(7, 1fr)",
+    gap: 4,
+    marginBottom: 4,
+  },
+  calendarWeekday: {
+    textAlign: "center",
+    fontSize: 10,
+    fontWeight: 600,
+    color: "#94a3b8",
+    padding: "5px 0",
+  },
+  calendarGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(7, 1fr)",
+    gap: 4,
+  },
+  calendarDay: {
+    minHeight: 42,
+    borderRadius: 8,
+    border: "1px solid #e2e8f0",
+    background: "#fff",
+    color: "#1e293b",
+    cursor: "pointer",
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: 13,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 1,
+    transition: "all 0.12s",
+  },
+  calendarDayClosed: {
+    color: "#dc2626",
+    background: "#fef2f2",
+    borderColor: "#fecaca",
+    cursor: "not-allowed",
+  },
+  calendarHoliday: {
+    color: "#b91c1c",
+    background: "#fee2e2",
+    borderColor: "#fca5a5",
+  },
+  calendarDaySelected: {
+    color: "#fff",
+    background: "#1e3a5f",
+    borderColor: "#1e3a5f",
+  },
+  calendarLegend: {
+    display: "flex",
+    gap: 14,
+    marginTop: 12,
+    flexWrap: "wrap",
+  },
+  calendarLegendItem: {
+    display: "flex",
+    alignItems: "center",
+    gap: 5,
+    fontSize: 10,
+    color: "#64748b",
+  },
+  calendarLegendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: "50%",
+  },
+  calendarChecking: {
+    marginTop: 10,
+    padding: "8px 10px",
+    borderRadius: 8,
+    background: "#eff6ff",
+    color: "#1e3a5f",
+    fontSize: 11,
+  },
+  calendarNotice: {
+    marginTop: 10,
+    padding: "9px 10px",
+    borderRadius: 8,
+    background: "#f0fdf4",
+    border: "1px solid #bbf7d0",
+    color: "#166534",
+    fontSize: 11,
+    lineHeight: 1.45,
+  },
 
   // Success
   successWrap: { textAlign: "center", padding: "8px 0" },
