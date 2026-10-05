@@ -703,7 +703,20 @@ const handleSubmit = async () => {
                       style={{ ...styles.input, ...(errors.date ? styles.inputErr : {}) }}
                       min={TODAY}
                       value={form.date}
-                      onChange={e => handleChange("date", e.target.value)}
+                      onChange={e => {
+  const selectedDate = e.target.value;
+  const day = new Date(selectedDate + "T00:00:00").getDay();
+
+  if (day === 0 || day === 6) {
+    setErrors(prev => ({
+      ...prev,
+      date: "The Embassy is closed on Saturdays and Sundays."
+    }));
+    return;
+  }
+
+  handleChange("date", selectedDate);
+}}
                     />
                     {errors.date && <span style={styles.errMsg}>{errors.date}</span>}
                   </div>

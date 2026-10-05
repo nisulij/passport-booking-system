@@ -317,9 +317,19 @@ export default function FamilyBooking() {
                 min={TODAY}
                 value={date}
                 onChange={(e) => {
-                  setDate(e.target.value);
-                  setMembers((current) => current.map((m) => ({ ...m, slot: "" })));
-                }}
+  const selectedDate = e.target.value;
+  const day = new Date(selectedDate + "T00:00:00").getDay();
+
+  if (day === 0 || day === 6) {
+    alert("The Embassy is closed on Saturdays and Sundays. Please select a weekday.");
+    return;
+  }
+
+  setDate(selectedDate);
+  setMembers((current) =>
+    current.map((m) => ({ ...m, slot: "" }))
+  );
+}}
               />
 
               {members.map((m, index) => (

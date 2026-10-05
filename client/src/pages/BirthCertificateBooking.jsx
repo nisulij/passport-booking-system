@@ -924,13 +924,18 @@ export default function BirthCertificateBooking() {
 
                   value={form.date}
 
-                  onChange={(e) => {
+               onChange={(e) => {
+  const selectedDate = e.target.value;
+  const day = new Date(selectedDate + "T00:00:00").getDay();
 
-                    update("date", e.target.value);
+  if (day === 0 || day === 6) {
+    alert("The Embassy is closed on Saturdays and Sundays. Please select a weekday.");
+    return;
+  }
 
-                    update("slot", "");
-
-                  }}
+  update("date", selectedDate);
+  update("slot", "");
+}}
 
                 />
 
