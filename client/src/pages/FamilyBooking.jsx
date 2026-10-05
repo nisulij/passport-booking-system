@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-const API_BASE = "https://passport-booking-app.onrender.com";
+const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/$/, "");
 const TODAY = new Date().toISOString().split("T")[0];
 
 const PURPOSES = [
@@ -42,6 +42,33 @@ function generateSlots() {
 
 const ALL_SLOTS = generateSlots();
 
+function normalizeStartTime(value) {
+  let raw = String(value ?? "").trim();
+  if (!raw) return "";
+  if (raw.includes(" - ")) raw = raw.split(" - ")[0].trim();
+  let m = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (m) return `${String(Number(m[1])).padStart(2, "0")}:${m[2]}`;
+  m = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i);
+  if (m) {
+    let h = Number(m[1]);
+    const ap = m[3].toUpperCase();
+    if (ap === "AM" && h === 12) h = 0;
+    if (ap === "PM" && h !== 12) h += 12;
+    return `${String(h).padStart(2, "0")}:${m[2]}`;
+  }
+  return raw;
+}
+
+function normalizeBookedRows(rows) {
+  const starts = new Set();
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const value = row?.appointmentTime ?? row?.slot ?? row?.time ?? row;
+    const start = normalizeStartTime(value);
+    if (start) starts.add(start);
+  }
+  return ALL_SLOTS.filter((slot) => starts.has(normalizeStartTime(slot)));
+}
+
 export default function FamilyBooking() {
   const [step, setStep] = useState(1);
   const [familyCount, setFamilyCount] = useState(2);
@@ -66,9 +93,18 @@ export default function FamilyBooking() {
       return;
     }
 
-    fetch(`${API_BASE}/api/slots/passport/${date}`)
-      .then((r) => r.json())
-      .then((data) => setBookedSlots(Array.isArray(data) ? data : []))
+    fetch(`${API_BASE}/admin/appointments/passport`)
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`Appointment load failed (${r.status})`);
+        return r.json();
+      })
+      .then((rows) => {
+        const selectedDate = date;
+        const dateRows = (Array.isArray(rows) ? rows : []).filter((row) =>
+          String(row?.appointmentDate ?? row?.date ?? "").slice(0, 10) === selectedDate
+        );
+        setBookedSlots(normalizeBookedRows(dateRows));
+      })
       .catch(() => setBookedSlots([]));
   }, [date]);
 
@@ -122,7 +158,7 @@ export default function FamilyBooking() {
     setLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE}/api/family-book`, {
+      const res = await fetch(`${API_BASE}/family-book`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

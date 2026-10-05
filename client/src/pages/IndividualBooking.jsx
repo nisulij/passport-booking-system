@@ -1,5 +1,38 @@
 import { useState, useEffect, useCallback } from "react";
 
+// Use the same date/time rows shown in the Admin Dashboard.
+// Local default: http://localhost:5000/api
+const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/$/, "");
+
+function normalizeStartTime(value) {
+  let raw = String(value ?? "").trim();
+  if (!raw) return "";
+  if (raw.includes(" - ")) raw = raw.split(" - ")[0].trim();
+
+  let m = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (m) return `${String(Number(m[1])).padStart(2, "0")}:${m[2]}`;
+
+  m = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i);
+  if (m) {
+    let h = Number(m[1]);
+    const ap = m[3].toUpperCase();
+    if (ap === "AM" && h === 12) h = 0;
+    if (ap === "PM" && h !== 12) h += 12;
+    return `${String(h).padStart(2, "0")}:${m[2]}`;
+  }
+  return raw;
+}
+
+function normalizeBookedRows(rows) {
+  const starts = new Set();
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const value = row?.appointmentTime ?? row?.slot ?? row?.time ?? row;
+    const start = normalizeStartTime(value);
+    if (start) starts.add(start);
+  }
+  return ALL_SLOTS.filter((slot) => starts.has(normalizeStartTime(slot)));
+}
+
 // Generate all 5-minute slots from 9am to 5pm
 function generateSlots() {
   const slots = [];
@@ -200,9 +233,18 @@ export default function PassportBooking() {
     if (!form.date) return;
     setLoadingSlots(true);
     setSelectedSlot("");
-    fetch(`https://passport-booking-app.onrender.com/api/slots/passport/${form.date}`)
-      .then(r => r.json())
-      .then(data => setBookedSlots(data))
+    fetch(`${API_BASE}/admin/appointments/passport`)
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`Appointment load failed (${r.status})`);
+        return r.json();
+      })
+      .then((rows) => {
+        const selectedDate = form.date;
+        const dateRows = (Array.isArray(rows) ? rows : []).filter((row) =>
+          String(row?.appointmentDate ?? row?.date ?? "").slice(0, 10) === selectedDate
+        );
+        setBookedSlots(normalizeBookedRows(dateRows));
+      })
       .catch((err) => {
         console.error("SLOT LOAD ERROR:", err);
         setBookedSlots([]);
@@ -244,7 +286,7 @@ const handleSubmit = async () => {
   try {
 
     const response = await fetch(
-      "https://passport-booking-app.onrender.com/api/book",
+      `${API_BASE}/book`,
       {
         method: "POST",
 
