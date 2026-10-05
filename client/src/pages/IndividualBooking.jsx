@@ -1,38 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
 
-// Use the same date/time rows shown in the Admin Dashboard.
-// Local default: http://localhost:5000/api
-const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/$/, "");
-
-function normalizeStartTime(value) {
-  let raw = String(value ?? "").trim();
-  if (!raw) return "";
-  if (raw.includes(" - ")) raw = raw.split(" - ")[0].trim();
-
-  let m = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
-  if (m) return `${String(Number(m[1])).padStart(2, "0")}:${m[2]}`;
-
-  m = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i);
-  if (m) {
-    let h = Number(m[1]);
-    const ap = m[3].toUpperCase();
-    if (ap === "AM" && h === 12) h = 0;
-    if (ap === "PM" && h !== 12) h += 12;
-    return `${String(h).padStart(2, "0")}:${m[2]}`;
-  }
-  return raw;
-}
-
-function normalizeBookedRows(rows) {
-  const starts = new Set();
-  for (const row of Array.isArray(rows) ? rows : []) {
-    const value = row?.appointmentTime ?? row?.slot ?? row?.time ?? row;
-    const start = normalizeStartTime(value);
-    if (start) starts.add(start);
-  }
-  return ALL_SLOTS.filter((slot) => starts.has(normalizeStartTime(slot)));
-}
-
 // Generate all 5-minute slots from 9am to 5pm
 function generateSlots() {
   const slots = [];
@@ -49,6 +16,39 @@ function generateSlots() {
 
 const ALL_SLOTS = generateSlots();
 const TODAY = new Date().toISOString().split("T")[0];
+const API_BASE = (import.meta.env.VITE_API_URL || "https://passport-booking-app.onrender.com/api").replace(/\/$/, "");
+
+function normalizeStartTime(value) {
+  let raw = String(value ?? "").trim();
+  if (!raw) return "";
+  if (raw.includes(" - ")) raw = raw.split(" - ")[0].trim();
+
+  let m = raw.match(/^(\\d{1,2}):(\\d{2})(?::\\d{2})?$/);
+  if (m) return `${String(Number(m[1])).padStart(2, "0")}:${m[2]}`;
+
+  m = raw.match(/^(\\d{1,2}):(\\d{2})(?::\\d{2})?\\s*(AM|PM)$/i);
+  if (m) {
+    let h = Number(m[1]);
+    const ap = m[3].toUpperCase();
+    if (ap === "AM" && h === 12) h = 0;
+    if (ap === "PM" && h !== 12) h += 12;
+    return `${String(h).padStart(2, "0")}:${m[2]}`;
+  }
+  return raw;
+}
+
+function normalizeBookedSlots(data) {
+  const blockedStarts = new Set(
+    (Array.isArray(data) ? data : [])
+      .map((item) => {
+        if (typeof item === "string") return item;
+        return item?.appointmentTime ?? item?.slot ?? item?.time ?? "";
+      })
+      .map(normalizeStartTime)
+      .filter(Boolean)
+  );
+  return ALL_SLOTS.filter((slot) => blockedStarts.has(normalizeStartTime(slot)));
+}
 
 function formatDateLabel(hour) {
   if (hour < 12) return `${hour}:00 AM`;
@@ -137,7 +137,7 @@ function SlotPanel({ date, bookedSlots, loadingSlots, selectedSlot, onSelectSlot
                 <div style={styles.hourLabel}>{formatDateLabel(hour)}</div>
                 <div className="passport-pill-row" style={styles.pillRow}>
                   {hourSlots.map(slot => {
-                    const isBooked = bookedSlots.includes(slot);
+                    const isBooked = bookedSlots.some(booked => normalizeStartTime(booked) === normalizeStartTime(slot));
                     const isSelected = slot === selectedSlot;
                     return (
                       <button
@@ -233,21 +233,32 @@ export default function PassportBooking() {
     if (!form.date) return;
     setLoadingSlots(true);
     setSelectedSlot("");
-    fetch(`${API_BASE}/admin/appointments/passport`)
-      .then(async (r) => {
-        if (!r.ok) throw new Error(`Appointment load failed (${r.status})`);
+    Promise.all([
+      fetch(`${API_BASE}/slots/passport/${encodeURIComponent(form.date)}`).then(async (r) => {
+        if (!r.ok) throw new Error(`Slot request failed (${r.status})`);
         return r.json();
-      })
-      .then((rows) => {
-        const selectedDate = form.date;
-        const dateRows = (Array.isArray(rows) ? rows : []).filter((row) =>
-          String(row?.appointmentDate ?? row?.date ?? "").slice(0, 10) === selectedDate
+      }),
+      fetch(`${API_BASE}/admin/appointments/passport`).then(async (r) => {
+        if (!r.ok) return [];
+        return r.json();
+      }),
+    ])
+      .then(([publicData, adminData]) => {
+        const dateRows = (Array.isArray(adminData) ? adminData : []).filter(
+          (row) =>
+            String(row?.appointmentDate ?? row?.date ?? "").slice(0, 10) === form.date
         );
-        setBookedSlots(normalizeBookedRows(dateRows));
+        setBookedSlots(
+          normalizeBookedSlots([
+            ...(Array.isArray(publicData) ? publicData : []),
+            ...dateRows,
+          ])
+        );
       })
       .catch((err) => {
         console.error("SLOT LOAD ERROR:", err);
-        setBookedSlots([]);
+        // Fail closed: never show every slot as available when availability cannot be loaded.
+        setBookedSlots(ALL_SLOTS);
       })
       .finally(() => setLoadingSlots(false));
   }, [form.date]);
@@ -286,7 +297,7 @@ const handleSubmit = async () => {
   try {
 
     const response = await fetch(
-      `${API_BASE}/book`,
+      "https://passport-booking-app.onrender.com/api/book",
       {
         method: "POST",
 
@@ -703,20 +714,7 @@ const handleSubmit = async () => {
                       style={{ ...styles.input, ...(errors.date ? styles.inputErr : {}) }}
                       min={TODAY}
                       value={form.date}
-                      onChange={e => {
-  const selectedDate = e.target.value;
-  const day = new Date(selectedDate + "T00:00:00").getDay();
-
-  if (day === 0 || day === 6) {
-    setErrors(prev => ({
-      ...prev,
-      date: "The Embassy is closed on Saturdays and Sundays."
-    }));
-    return;
-  }
-
-  handleChange("date", selectedDate);
-}}
+                      onChange={e => handleChange("date", e.target.value)}
                     />
                     {errors.date && <span style={styles.errMsg}>{errors.date}</span>}
                   </div>

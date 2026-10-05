@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/$/, "");
+const API_BASE = (import.meta.env.VITE_API_URL || "https://passport-booking-app.onrender.com/api").replace(/\/$/, "");
 const TODAY = new Date().toISOString().split("T")[0];
 
 const PURPOSES = [
@@ -46,8 +46,10 @@ function normalizeStartTime(value) {
   let raw = String(value ?? "").trim();
   if (!raw) return "";
   if (raw.includes(" - ")) raw = raw.split(" - ")[0].trim();
+
   let m = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
   if (m) return `${String(Number(m[1])).padStart(2, "0")}:${m[2]}`;
+
   m = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i);
   if (m) {
     let h = Number(m[1]);
@@ -59,14 +61,17 @@ function normalizeStartTime(value) {
   return raw;
 }
 
-function normalizeBookedRows(rows) {
-  const starts = new Set();
-  for (const row of Array.isArray(rows) ? rows : []) {
-    const value = row?.appointmentTime ?? row?.slot ?? row?.time ?? row;
-    const start = normalizeStartTime(value);
-    if (start) starts.add(start);
-  }
-  return ALL_SLOTS.filter((slot) => starts.has(normalizeStartTime(slot)));
+function normalizeBookedSlots(data) {
+  const blockedStarts = new Set(
+    (Array.isArray(data) ? data : [])
+      .map((item) => {
+        if (typeof item === "string") return item;
+        return item?.appointmentTime ?? item?.slot ?? item?.time ?? "";
+      })
+      .map(normalizeStartTime)
+      .filter(Boolean)
+  );
+  return ALL_SLOTS.filter((slot) => blockedStarts.has(normalizeStartTime(slot)));
 }
 
 export default function FamilyBooking() {
@@ -93,19 +98,32 @@ export default function FamilyBooking() {
       return;
     }
 
-    fetch(`${API_BASE}/admin/appointments/passport`)
-      .then(async (r) => {
-        if (!r.ok) throw new Error(`Appointment load failed (${r.status})`);
+    Promise.all([
+      fetch(`${API_BASE}/slots/passport/${encodeURIComponent(date)}`).then(async (r) => {
+        if (!r.ok) throw new Error(`Slot request failed (${r.status})`);
         return r.json();
-      })
-      .then((rows) => {
-        const selectedDate = date;
-        const dateRows = (Array.isArray(rows) ? rows : []).filter((row) =>
-          String(row?.appointmentDate ?? row?.date ?? "").slice(0, 10) === selectedDate
+      }),
+      fetch(`${API_BASE}/admin/appointments/passport`).then(async (r) => {
+        if (!r.ok) return [];
+        return r.json();
+      }),
+    ])
+      .then(([publicData, adminData]) => {
+        const dateRows = (Array.isArray(adminData) ? adminData : []).filter(
+          (row) =>
+            String(row?.appointmentDate ?? row?.date ?? "").slice(0, 10) === date
         );
-        setBookedSlots(normalizeBookedRows(dateRows));
+        setBookedSlots(
+          normalizeBookedSlots([
+            ...(Array.isArray(publicData) ? publicData : []),
+            ...dateRows,
+          ])
+        );
       })
-      .catch(() => setBookedSlots([]));
+      .catch((err) => {
+        console.error("FAMILY SLOT LOAD ERROR:", err);
+        setBookedSlots(ALL_SLOTS);
+      });
   }, [date]);
 
   const changeFamilyCount = (count) => {
@@ -317,19 +335,9 @@ export default function FamilyBooking() {
                 min={TODAY}
                 value={date}
                 onChange={(e) => {
-  const selectedDate = e.target.value;
-  const day = new Date(selectedDate + "T00:00:00").getDay();
-
-  if (day === 0 || day === 6) {
-    alert("The Embassy is closed on Saturdays and Sundays. Please select a weekday.");
-    return;
-  }
-
-  setDate(selectedDate);
-  setMembers((current) =>
-    current.map((m) => ({ ...m, slot: "" }))
-  );
-}}
+                  setDate(e.target.value);
+                  setMembers((current) => current.map((m) => ({ ...m, slot: "" })));
+                }}
               />
 
               {members.map((m, index) => (
@@ -370,7 +378,7 @@ export default function FamilyBooking() {
 
               <div className="family-slot-grid" style={styles.slotGrid}>
                 {ALL_SLOTS.map((slot) => {
-                  const isBooked = bookedSlots.includes(slot);
+                  const isBooked = bookedSlots.some(booked => normalizeStartTime(booked) === normalizeStartTime(slot));
                   const selectedBy = members.findIndex((m) => m.slot === slot);
                   const isSelected = selectedBy >= 0;
 
