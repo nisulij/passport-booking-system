@@ -1,22 +1,11 @@
 const express = require("express");
 const router = express.Router();
 const Booking = require("../models/Booking");
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
 // -------------------------------------------------
 // EMAIL CONFIRMATIONS
 // -------------------------------------------------
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,
-  secure: true,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  connectionTimeout: 30000,
-  greetingTimeout: 30000,
-  socketTimeout: 30000,
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 function serviceLabel(serviceType) {
   if (serviceType === "passport") return "Passport";
   if (serviceType === "birth_certificate") return "Birth Certificate";
@@ -42,8 +31,9 @@ async function sendAppointmentEmail(booking) {
     }
     const service = serviceLabel(booking.serviceType);
     const to = String(booking.email).trim().toLowerCase();
-    const info = await transporter.sendMail({
-      from: `"Passport & Consular Booking" <${process.env.EMAIL_USER}>`,
+   const { data: info, error } = await resend.emails.send({
+    
+      from: "Passport & Consular Booking <onboarding@resend.dev>",
       to,
       subject: `Appointment Confirmed - ${service} - ${booking.token}`,
       text:
@@ -73,6 +63,13 @@ This is an automated confirmation email.`,
         </div>
       `,
     });
+    if (error) {
+  console.error("RESEND EMAIL ERROR:", error);
+  return false;
+}
+
+console.log("EMAIL SENT SUCCESSFULLY:", info?.id);
+return true;
     console.log(`EMAIL SENT: ${info.messageId} -> ${to}`);
     return true;
   } catch (err) {
