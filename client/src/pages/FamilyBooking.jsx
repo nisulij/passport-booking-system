@@ -87,6 +87,7 @@ function generateSlots() {
 const ALL_SLOTS = generateSlots();
 
 const MAX_BOOKABLE_SLOTS = 40;
+const MAX_BOOKING_DATE = "2026-12-31";
 
 
 
@@ -214,6 +215,8 @@ async function findNextAvailableFamilyDate(startDate, requiredSlots) {
 
   for (let i = 0; i < 370; i++) {
 
+    if (current > MAX_BOOKING_DATE) break;
+
     if (!isClosedDate(current) && current >= TODAY) {
 
       const availableSlots = await getAvailableSlotsForDate(current);
@@ -261,7 +264,7 @@ function AppointmentCalendar({ value, onChange, familySize, checking }) {
     const days = getCalendarDays(viewYear, viewMonth).filter(Boolean);
     const futureOpenDays = days.filter((dayObj) => {
       const dateStr = formatCalendarDate(dayObj);
-      return dateStr >= TODAY && !isClosedDate(dateStr);
+      return dateStr >= TODAY && dateStr <= MAX_BOOKING_DATE && !isClosedDate(dateStr);
     });
 
     setAvailabilityLoading(true);
@@ -322,7 +325,8 @@ function AppointmentCalendar({ value, onChange, familySize, checking }) {
   const goMonth = (delta) => {
     const next = new Date(viewYear, viewMonth + delta, 1);
     const nextKey = next.getFullYear() * 12 + next.getMonth();
-    if (nextKey < minMonthKey) return;
+    const maxMonthKey = 2026 * 12 + 11;
+    if (nextKey < minMonthKey || nextKey > maxMonthKey) return;
     setViewYear(next.getFullYear());
     setViewMonth(next.getMonth());
   };
@@ -364,8 +368,20 @@ function AppointmentCalendar({ value, onChange, familySize, checking }) {
         <button
           type="button"
           onClick={() => goMonth(1)}
-          disabled={checking || availabilityLoading}
-          style={{ ...styles.calendarNavBtn, opacity: checking || availabilityLoading ? 0.45 : 1 }}
+          disabled={
+            checking ||
+            availabilityLoading ||
+            (viewYear === 2026 && viewMonth === 11)
+          }
+          style={{
+            ...styles.calendarNavBtn,
+            opacity:
+              checking ||
+              availabilityLoading ||
+              (viewYear === 2026 && viewMonth === 11)
+                ? 0.45
+                : 1,
+          }}
         >
           ›
         </button>
@@ -388,6 +404,7 @@ function AppointmentCalendar({ value, onChange, familySize, checking }) {
           const dateStr = formatCalendarDate(dayObj);
           const closed = isClosedDate(dateStr);
           const past = dateStr < TODAY;
+          const afterMaxDate = dateStr > MAX_BOOKING_DATE;
           const selected = dateStr === value;
           const holiday = HOLIDAYS[dateStr];
           const knownUnavailable = availabilityByDate[dateStr] === false;
@@ -396,6 +413,7 @@ function AppointmentCalendar({ value, onChange, familySize, checking }) {
           const disabled =
             closed ||
             past ||
+            afterMaxDate ||
             checking ||
             availabilityByDate[dateStr] !== true ||
             availabilityLoading;
@@ -410,7 +428,9 @@ function AppointmentCalendar({ value, onChange, familySize, checking }) {
                 holiday ||
                 (closed
                   ? "Closed"
-                  : knownUnavailable
+                  : afterMaxDate
+                    ? "Appointments are closed after 31 December 2026"
+                    : knownUnavailable
                     ? `Not enough slots for ${familySize} family members`
                     : checkingAvailability
                       ? "Checking availability"
@@ -420,6 +440,7 @@ function AppointmentCalendar({ value, onChange, familySize, checking }) {
                 ...styles.calendarDay,
                 ...(closed ? styles.calendarClosed : {}),
                 ...(past ? styles.calendarPast : {}),
+                ...(afterMaxDate ? styles.calendarPast : {}),
                 ...(knownUnavailable ? styles.calendarUnavailable : {}),
                 ...(checkingAvailability || availabilityLoading ? styles.calendarCheckingDay : {}),
                 ...(selected ? styles.calendarSelected : {}),
