@@ -17,6 +17,7 @@ function generateSlots() {
 
 const ALL_SLOTS = generateSlots();
 const MAX_BOOKABLE_SLOTS = 40;
+const MAX_APPOINTMENT_DATE = "2026-12-31";
 const TODAY = new Date().toISOString().split("T")[0];
 const API_BASE = (import.meta.env.VITE_API_URL || "https://passport-booking-app.onrender.com/api").replace(/\/$/, "");
 
@@ -118,7 +119,7 @@ async function getAvailableSlotsForDate(dateStr) {
 async function findNextAvailableDate(startDate) {
   let candidate = startDate;
 
-  for (let i = 0; i < 370; i++) {
+  for (let i = 0; i < 370 && candidate <= MAX_APPOINTMENT_DATE; i++) {
     if (!isClosedDate(candidate)) {
       const availableSlots = await getAvailableSlotsForDate(candidate);
 
@@ -177,9 +178,14 @@ function AppointmentCalendar({ value, minDate, onChange, loading }) {
   };
 
   const goNextMonth = () => {
-    setViewDate(
-      new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1)
+    const next = new Date(
+      viewDate.getFullYear(),
+      viewDate.getMonth() + 1,
+      1
     );
+    const maximumMonth = new Date(2026, 11, 1);
+
+    if (next <= maximumMonth) setViewDate(next);
   };
 
   const handleDateClick = async (date) => {
@@ -187,7 +193,11 @@ function AppointmentCalendar({ value, minDate, onChange, loading }) {
 
     const selectedDate = formatCalendarDate(date);
 
-    if (selectedDate < minDate || isClosedDate(selectedDate)) return;
+    if (
+      selectedDate < minDate ||
+      selectedDate > MAX_APPOINTMENT_DATE ||
+      isClosedDate(selectedDate)
+    ) return;
 
     setCheckingDate(true);
     setNotice("");
@@ -277,7 +287,8 @@ function AppointmentCalendar({ value, minDate, onChange, loading }) {
           const past = dateStr < minDate;
           const selected = dateStr === value;
           const holiday = Boolean(HOLIDAYS[dateStr]);
-          const disabled = closed || past || checkingDate || loading;
+          const beyondMax = dateStr > MAX_APPOINTMENT_DATE;
+          const disabled = closed || past || beyondMax || checkingDate || loading;
 
           return (
             <button
@@ -290,13 +301,15 @@ function AppointmentCalendar({ value, minDate, onChange, loading }) {
                   ? HOLIDAYS[dateStr]
                   : closed
                   ? "Embassy closed"
+                  : beyondMax
+                  ? "Appointments are available only until 31 December 2026"
                   : past
                   ? "Past date"
                   : "Check appointment availability"
               }
               style={{
                 ...styles.calendarDay,
-                ...(closed || past ? styles.calendarDayClosed : {}),
+                ...(closed || past || beyondMax ? styles.calendarDayClosed : {}),
                 ...(holiday ? styles.calendarHoliday : {}),
                 ...(selected ? styles.calendarDaySelected : {}),
               }}
@@ -407,6 +420,7 @@ function SlotPanel({ date, bookedSlots, loadingSlots, selectedSlot, onSelectSlot
         {[
           { val: date && !loadingSlots ? available : "—", lbl: "Available", color: "#166534" },
           { val: date && !loadingSlots ? bookedSlots.length : "—", lbl: "Booked", color: "#9a3412" },
+          { val: date && !loadingSlots ? ALL_SLOTS.length : "—", lbl: "Total", color: "#1e3a5f" },
         ].map(({ val, lbl, color }) => (
           <div key={lbl} style={styles.statCard}>
             <div style={{ ...styles.statVal, color }}>{val}</div>
@@ -521,19 +535,7 @@ function SuccessScreen({ booking, onReset }) {
         ))}
       </div>
 
-      <button
-        style={{ ...styles.ghostBtn, marginBottom: 10 }}
-        onClick={async () => {
-          try {
-            await downloadIndividualConfirmation(booking);
-            window.location.assign("/");
-          } catch (error) {
-            alert(error.message || "Unable to download the confirmation.");
-          }
-        }}
-      >
-        Download Confirmation
-      </button>
+      <button style={{ ...styles.ghostBtn, marginBottom: 10 }} onClick={() => downloadIndividualConfirmation(booking)}>Download Confirmation</button>
     </div>
   );
 }

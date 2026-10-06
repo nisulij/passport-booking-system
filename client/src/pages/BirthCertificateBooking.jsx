@@ -18,6 +18,8 @@ const API_ROOT = (
 
 
 
+const MAX_APPOINTMENT_DATE = "2026-12-31";
+
 function getTodayLocal() {
 
   const now = new Date();
@@ -137,7 +139,6 @@ function normalizeStartTime(value) {
 
 
 function downloadBirthCertificateConfirmation({ name, date, slot, token }) {
-  return new Promise((resolve, reject) => {
   const safe = (value) => String(value ?? "").replace(/[&<>\"']/g, (char) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&apos;",
   }[char]));
@@ -166,11 +167,9 @@ function downloadBirthCertificateConfirmation({ name, date, slot, token }) {
     const canvas = document.createElement("canvas"); canvas.width = width * 2; canvas.height = height * 2;
     const ctx = canvas.getContext("2d"); ctx.scale(2, 2); ctx.drawImage(image, 0, 0, width, height); URL.revokeObjectURL(url);
     const link = document.createElement("a"); link.download = `Birth-Certificate-Appointment-${String(token || "confirmation").replace(/[^a-zA-Z0-9_-]/g, "_")}.png`; link.href = canvas.toDataURL("image/png"); link.click();
-    resolve();
   };
-  image.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Unable to download the confirmation image. Please try again.")); };
+  image.onerror = () => { URL.revokeObjectURL(url); alert("Unable to download the confirmation image. Please try again."); };
   image.src = url;
-  });
 }
 
 
@@ -574,21 +573,22 @@ export default function BirthCertificateBooking() {
 
             <button
               className="bc-primary"
-              onClick={async () => {
-                try {
-                  await downloadBirthCertificateConfirmation({
-                    name: form.name,
-                    date: form.date,
-                    slot: form.slot,
-                    token,
-                  });
-                  navigate("/");
-                } catch (error) {
-                  alert(error.message || "Unable to download the confirmation.");
-                }
-              }}
+              onClick={() => downloadBirthCertificateConfirmation({
+                name: form.name,
+                date: form.date,
+                slot: form.slot,
+                token,
+              })}
             >
               Download Appointment Confirmation
+            </button>
+
+            <button
+              className="bc-primary"
+              onClick={() => navigate("/")}
+              style={{ marginTop: 12 }}
+            >
+              Return to Services
             </button>
 
           </section>
@@ -967,10 +967,18 @@ export default function BirthCertificateBooking() {
 
                   min={TODAY}
 
+                  max={MAX_APPOINTMENT_DATE}
+
                   value={form.date}
 
                onChange={(e) => {
   const selectedDate = e.target.value;
+
+  if (selectedDate > MAX_APPOINTMENT_DATE) {
+    alert("Appointments are available only until 31 December 2026.");
+    return;
+  }
+
   const day = new Date(selectedDate + "T00:00:00").getDay();
 
   if (day === 0 || day === 6) {
@@ -1046,6 +1054,16 @@ export default function BirthCertificateBooking() {
 
 
 
+            {form.date && (
+
+              <div className="bc-open">
+
+                {availableCount} open
+
+              </div>
+
+            )}
+
           </div>
 
 
@@ -1076,29 +1094,7 @@ export default function BirthCertificateBooking() {
 
           ) : (
 
-            <>
-
-              <div className="bc-stats-row">
-
-                <div className="bc-stat-card">
-
-                  <strong>{availableCount}</strong>
-
-                  <span>Available</span>
-
-                </div>
-
-                <div className="bc-stat-card">
-
-                  <strong>{bookedSlots.length}</strong>
-
-                  <span>Booked</span>
-
-                </div>
-
-              </div>
-
-              <div className="bc-slot-grid">
+            <div className="bc-slot-grid">
 
               {ALL_SLOTS.map((slot) => {
 
@@ -1153,8 +1149,6 @@ export default function BirthCertificateBooking() {
               })}
 
             </div>
-
-            </>
 
           )}
 
@@ -1677,40 +1671,6 @@ body { margin: 0; }
 }
 
 
-
-.bc-stats-row {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-  margin: 0 0 18px;
-}
-
-.bc-stat-card {
-  background: #f7f9fc;
-  border: 1px solid #e1e7ef;
-  border-radius: 12px;
-  padding: 15px 12px;
-  text-align: center;
-}
-
-.bc-stat-card strong {
-  display: block;
-  font-size: 24px;
-  line-height: 1;
-  color: #203f69;
-  font-weight: 700;
-}
-
-.bc-stat-card:first-child strong {
-  color: #148345;
-}
-
-.bc-stat-card span {
-  display: block;
-  margin-top: 7px;
-  font-size: 10px;
-  color: #8a9ab0;
-}
 
 .bc-open {
 
