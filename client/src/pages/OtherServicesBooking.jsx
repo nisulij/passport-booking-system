@@ -381,7 +381,7 @@ export default function OtherServicesBooking() {
                   <option>Document Attestation</option>
                   <option>Power of Attorney</option>
                   <option>Affidavit</option>
-                  <option>Citizenship Services</option>
+                  <option>Dual Citizenship Services</option>
                   <option>Pension / Life Certificate</option>
                   <option>Police Clearance Related Service</option>
                   <option>Consular Assistance</option>
